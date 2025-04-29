@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="RemoteRepositoriesConfiguration">
+    <remote-repository>
+      <option name="id" value="central" />
+      <option name="name" value="Central Repository" />
+      <option name="url" value="https://repo.maven.apache.org/maven2" />
+    </remote-repository>
+    <remote-repository>
+      <option name="id" value="Nexus_RandD" />
+      <option name="name" value="ATPCO Nexus Maven Repository" />
+      <option name="url" value="http://artmgt01.atpco.org:8081/repository/maven-releases/" />
+    </remote-repository>
+    <remote-repository>
+      <option name="id" value="Maven_Central" />
+      <option name="name" value="ATPCO Nexus Maven Central Repository" />
+      <option name="url" value="http://artmgt01.atpco.org:8081/repository/maven-central/" />
+    </remote-repository>
+    <remote-repository>
+      <option name="id" value="central" />
+      <option name="name" value="Maven Central repository" />
+      <option name="url" value="https://repo1.maven.org/maven2" />
+    </remote-repository>
+    <remote-repository>
+      <option name="id" value="jboss.community" />
+      <option name="name" value="JBoss Community repository" />
+      <option name="url" value="https://repository.jboss.org/nexus/content/repositories/public/" />
+    </remote-repository>
+    <remote-repository>
+      <option name="id" value="atpco-3v-3V-ATP" />
+      <option name="name" value="atpco-3v-3V-ATP" />
+      <option name="url" value="https://atpco-3v-590183652635.d.codeartifact.us-east-1.amazonaws.com/maven/3V-ATP/" />
+    </remote-repository>
+    <remote-repository>
+      <option name="id" value="Nexus" />
+      <option name="name" value="ATPCO Nexus Maven Repository" />
+      <option name="url" value="http://artmgt01.atpco.org:8081/repository/maven-public/" />
+    </remote-repository>
+  </component>
+</project>
