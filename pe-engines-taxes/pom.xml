@@ -23,6 +23,10 @@
         <!-- greater than version 3.1 maven required -->
         <version.plugin.enforcer>3.4.1</version.plugin.enforcer>
         <version.plugin.enforcer.enforce>(3.1,)</version.plugin.enforcer.enforce>
+        <version.velocity>2.4</version.velocity>
+        <version.soap>1.4.0</version.soap>
+        <version.json-path>2.9.0</version.json-path>
+        <version.slf4j>2.0.16</version.slf4j>
 
         <git.directory>~/git</git.directory>
         <docker.pushRegistry>732267085676.dkr.ecr.us-east-1.amazonaws.com</docker.pushRegistry>
@@ -358,9 +362,31 @@
             <groupId>net.atpco.engine.servicefees</groupId>
             <artifactId>service-fee-engine</artifactId>
             <version>26.2.3</version>
+<!--            <version>26.3.0-SNAPSHOT</version>-->
         </dependency>
 
         <dependency>
+            <groupId>org.apache.velocity</groupId>
+            <artifactId>velocity-engine-core</artifactId>
+            <version>${version.velocity}</version>
+        </dependency>
+        <dependency>
+            <groupId>javax.xml.soap</groupId>
+            <artifactId>javax.xml.soap-api</artifactId>
+            <version>${version.soap}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.jayway.jsonpath</groupId>
+            <artifactId>json-path</artifactId>
+            <version>${version.json-path}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-reload4j</artifactId>
+            <version>${version.slf4j}</version>
+        </dependency>
+
+        <!--<dependency>
             <groupId>net.atpco.engine.servicefees</groupId>
             <artifactId>pfc-engine</artifactId>
             <version>26.2.3</version>
@@ -376,7 +402,7 @@
             <groupId>net.atpco.engine.servicefees</groupId>
             <artifactId>yqyr-engine</artifactId>
             <version>26.2.3</version>
-        </dependency>
+        </dependency>-->
 
     </dependencies>
 
