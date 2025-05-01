@@ -1,94 +1,30 @@
 {
   "itinerary": {
     "taxLegs": [
-      {
-        "departs": "${ctx.leg1.departsDateTime}",
-        "arrives": "${ctx.leg1.arrivesDateTime}",
-        "legId": ${ctx.leg1.legId},
-        "origin": {
-          "type": "P",
-          "code": "${ctx.leg1.originCode}"
-        },
-        "destination": {
-          "type": "P",
-          "code": "${ctx.leg1.destinationCode}"
-        },
-        "marketedCarrier": "${ctx.leg1.marketedCarrier}",
-        "marketedFlightNo": ${ctx.leg1.marketedFlightNo},
-        "operatedCarrier": "${ctx.leg1.operatedCarrier}",
-        "operatedFlightNo":  ${ctx.leg1.operatedFlightNo},
-        "rbd": "",
-        "legIndicator": "F",
-        "fareIndex": ${ctx.leg1.fareIndex},
-        "transferType": "${ctx.leg1.transferType}",
-        "involuntary": false
-      },
-      {
-        "departs": "${ctx.leg2.departsDateTime}",
-        "arrives": "${ctx.leg2.arrivesDateTime}",
-        "legId": ${ctx.leg2.legId},
-        "origin": {
-          "type": "P",
-          "code": "${ctx.leg2.originCode}"
-        },
-        "destination": {
-          "type": "P",
-          "code": "${ctx.leg2.destinationCode}"
-        },
-        "marketedCarrier": "${ctx.leg2.marketedCarrier}",
-        "marketedFlightNo": ${ctx.leg2.marketedFlightNo},
-        "operatedCarrier": "${ctx.leg2.operatedCarrier}",
-        "operatedFlightNo": ${ctx.leg2.operatedFlightNo},
-        "rbd": "",
-        "legIndicator": "F",
-        "fareIndex": ${ctx.leg2.fareIndex},
-        "transferType": "${ctx.leg2.transferType}",
-        "involuntary": false
-      },
-
-      {
-        "departs": "${ctx.leg3.departsDateTime}",
-        "arrives": "${ctx.leg3.arrivesDateTime}",
-        "legId": ${ctx.leg3.legId},
-        "origin": {
-          "type": "P",
-          "code": "${ctx.leg3.originCode}"
-        },
-        "destination": {
-          "type": "P",
-          "code": "${ctx.leg3.destinationCode}"
-        },
-        "marketedCarrier": "${ctx.leg3.marketedCarrier}",
-        "marketedFlightNo": ${ctx.leg3.marketedFlightNo},
-        "operatedCarrier": "${ctx.leg3.operatedCarrier}",
-        "operatedFlightNo": ${ctx.leg3.operatedFlightNo},
-        "rbd": "",
-        "legIndicator": "F",
-        "fareIndex": ${ctx.leg3.fareIndex},
-        "transferType": "${ctx.leg3.transferType}",
-        "involuntary": false
-      },
-      {
-        "departs": "${ctx.leg4.departsDateTime}",
-        "arrives": "${ctx.leg4.arrivesDateTime}",
-        "legId": ${ctx.leg4.legId},
-        "origin": {
-          "type": "P",
-          "code": "${ctx.leg4.originCode}"
-        },
-        "destination": {
-          "type": "P",
-          "code": "${ctx.leg4.destinationCode}"
-        },
-        "marketedCarrier": "${ctx.leg4.marketedCarrier}",
-        "marketedFlightNo": ${ctx.leg4.marketedFlightNo},
-        "operatedCarrier": "${ctx.leg4.operatedCarrier}",
-        "operatedFlightNo": ${ctx.leg4.operatedFlightNo},
-        "rbd": "",
-        "legIndicator": "F",
-        "fareIndex": ${ctx.leg4.fareIndex},
-        "involuntary": false
-      }
+      #foreach($leg in ${ctx.legs})
+        {
+          "departs": "${leg.departsDateTime}",
+          "arrives": "${leg.arrivesDateTime}",
+          "legId": ${foreach.count},
+          "origin": {
+            "type": "P",
+            "code": "${leg.originCode}"
+          },
+          "destination": {
+            "type": "P",
+            "code": "${leg.destinationCode}"
+          },
+          "marketedCarrier": "${leg.marketedCarrier}",
+          "marketedFlightNo": ${leg.marketedFlightNo},
+          "operatedCarrier": "${leg.operatedCarrier}",
+          "operatedFlightNo": ${leg.operatedFlightNo},
+          "rbd": "",
+          "legIndicator": "F",
+          "fareIndex": ${leg.fareIndex},
+            #if(${leg.isTransferTypeLeg}) "transferType": "${leg.transferType}",#end
+          "involuntary": false
+        }#if($foreach.hasNext),#end
+      #end
     ]
   },
 
@@ -99,20 +35,20 @@
       "privateTariff": false,
       "domesticFare": false,
       "fareOwningCarrier": "${ctx.fareOwningCarrier}",
-      "tripType": "ROUND_TRIP",
-      "fareAmount": 50.00,
+      "tripType": "${ctx.tripType}",
+    "fareAmount": #if(${ctx.tripType} == "ONE_WAY")100.00#{else}50.00#end,
       "fareCurrency": "USD"
-    },
-    {
-      "fareBasisTicketDesignator": "",
-      "tariff": 0,
-      "privateTariff": false,
-      "domesticFare": false,
-      "fareOwningCarrier": "${ctx.fareOwningCarrier}",
-      "tripType": "ROUND_TRIP",
-      "fareAmount": 50.00,
-      "fareCurrency": "USD"
-    }
+    }#if(${ctx.tripType} == "ROUND_TRIP"),
+      {
+        "fareBasisTicketDesignator": "",
+        "tariff": 0,
+        "privateTariff": false,
+        "domesticFare": false,
+        "fareOwningCarrier": "${ctx.fareOwningCarrier}",
+        "tripType": "${ctx.tripType}",
+        "fareAmount": 50.00,
+        "fareCurrency": "USD"
+      }#end
   ],
   "ticketDate": "${ctx.ticketDate}",
   "validatingCarrier": "${ctx.validatingCarrier}",
@@ -124,11 +60,11 @@
     "type": "N",
     "code": "US"
   },
-  "faresTotal": 100.00,
+"faresTotal": #if(${ctx.tripType} == "ONE_WAY")100.00#{else}100.00#end,
   "feesTotal": 0.00,
   "ticketCurrency": "USD",
   "responseCurrency": "USD",
   "enableDiagnostics": true,
-  "includeExemptSequence": true,
+  "includeExemptSequence": false,
   "involuntary": false
 }

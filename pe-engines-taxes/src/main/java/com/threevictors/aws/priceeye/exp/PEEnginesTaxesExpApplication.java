@@ -55,20 +55,6 @@ public class PEEnginesTaxesExpApplication {
 
     public static void main(String[] args) {
 
-        //ServiceFeeEngine.main(args);
-
-        /*final Class<?>[] sources = new Class<?>[] {
-                ServiceFeeEngineConfiguration.class,
-                ServiceFeeEngineProdConfiguration.class,
-                YqYrEngineConfiguration.class,
-                TaxesEngineConfiguration.class,
-                PFCEngineConfiguration.class };
-
-        final ApplicationContext ctx = SpringApplication.run(sources, args);*/
-
-
-        //System.out.println("PEEnginesTaxesExpApplication started!");
-
         PEEnginesTaxesExpApplication currentApp = new PEEnginesTaxesExpApplication();
         TaxEngineRequestBuilder taxEngineRequestBuilder = new TaxEngineRequestBuilder();
 
@@ -85,17 +71,11 @@ public class PEEnginesTaxesExpApplication {
             with some values and transform it to TaxServiceFeeQuery query and make the call.
             Note that the PEItinerary does not have basefare, so start with a value of 1 or 100 and see how it goes.*/
 
-        //TaxServiceFeeQuery query = TaxServiceFeeQuery.builder().build();
-        //TaxService taxService = new TaxService();
-
-        //TODO: Need to create the stub from the velocity template by using the TaxEngineRequestBuilder
-        //TaxServiceFeeQuery tsFeeQueryStub = currentApp.createTaxServiceFeeQueryStub();
+        //Stub is created from the velocityTemplate.
+        // This is because the TaxServiceFeeQuery object did not yield a JSON String that was properly working.
+        //TODO: Stub a proper PEItinerary object (mostly by running a system test for AS or UA and use that to populate)
          String reqBody = taxEngineRequestBuilder.buildRequest(new PEItinerary());
 
-
-
-
-        //String reqBody = gson.toJson(tsFeeQueryStub);
         //String reqBody = "{\"itinerary\":{\"taxLegs\":[{\"departs\":\"250601 08:10\",\"arrives\":\"250601 20:00\",\"legId\":1,\"origin\":{\"type\":\"P\",\"code\":\"JFK\"},\"destination\":{\"type\":\"P\",\"code\":\"LHR\"},\"marketedCarrier\":\"DL\",\"marketedFlightNo\":5996,\"operatedCarrier\":\"VA\",\"operatedFlightNo\":5996,\"rbd\":\"\",\"legIndicator\":\"F\",\"fareIndex\":0,\"transferType\":\"STOP_OVER\",\"involuntary\":false},{\"departs\":\"250608 09:35\",\"arrives\":\"250608 12:45\",\"legId\":2,\"origin\":{\"type\":\"P\",\"code\":\"LHR\"},\"destination\":{\"type\":\"P\",\"code\":\"JFK\"},\"marketedCarrier\":\"DL\",\"marketedFlightNo\":5997,\"operatedCarrier\":\"VA\",\"operatedFlightNo\":5997,\"rbd\":\"\",\"legIndicator\":\"F\",\"fareIndex\":0,\"involuntary\":false}]},\"fares\":[{\"fareBasisTicketDesignator\":\"\",\"tariff\":0,\"privateTariff\":false,\"domesticFare\":false,\"fareOwningCarrier\":\"DL\",\"tripType\":\"ROUND_TRIP\",\"fareAmount\":0.01,\"fareCurrency\":\"USD\"},{\"fareBasisTicketDesignator\":\"\",\"tariff\":0,\"privateTariff\":false,\"domesticFare\":false,\"fareOwningCarrier\":\"DL\",\"tripType\":\"ROUND_TRIP\",\"fareAmount\":0.01,\"fareCurrency\":\"USD\"}],\"ticketDate\":\"250429\",\"validatingCarrier\":\"DL\",\"pointOfSale\":{\"type\":\"N\",\"code\":\"US\"},\"pointOfTicketing\":{\"type\":\"N\",\"code\":\"US\"},\"faresTotal\":0.02,\"feesTotal\":0.00,\"ticketCurrency\":\"USD\",\"responseCurrency\":\"USD\",\"enableDiagnostics\":true,\"includeExemptSequence\":true,\"involuntary\":false}";
         //Make a call to Engines
         HttpResponse<String> response = currentApp.sendRequest(getBaseUri() + "/tax", "POST", reqBody, null);

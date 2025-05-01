@@ -1,8 +1,10 @@
 package com.threevictors.aws.priceeye.exp;
 
-import com.threevictors.aws.data.priceeye.PEExpandedInputRequest;
 import com.threevictors.aws.data.priceeye.PEItinerary;
 import lombok.Data;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEngineReqVelocityData> {
@@ -28,6 +30,9 @@ public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEng
 
     //TODO: Temp method. Need to build one based on loops
     private void stubTaxEngineReqVelocityData(TaxEngineReqVelocityData ctx) {
+
+        List<TaxLegVelocityData> legs = new ArrayList<>();
+
         TaxLegVelocityData leg1 = new TaxLegVelocityData();
         leg1.setDepartsDateTime("250601 06:00");
         leg1.setArrivesDateTime("250601 18:00");
@@ -40,8 +45,9 @@ public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEng
         leg1.setOperatedCarrier("DL");
         leg1.setOperatedFlightNo(2286);
         leg1.setFareIndex(0);
+        leg1.setTransferTypeLeg(true);
         leg1.setTransferType("CONNECTION");
-        ctx.setLeg1(leg1);
+        legs.add(leg1);
 
         TaxLegVelocityData leg2 = new TaxLegVelocityData();
         leg2.setDepartsDateTime("250601 09:10");
@@ -54,8 +60,9 @@ public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEng
         leg2.setOperatedCarrier("DL");
         leg2.setOperatedFlightNo(5227);
         leg2.setFareIndex(0);
+        leg1.setTransferTypeLeg(true);
         leg2.setTransferType("STOP_OVER");
-        ctx.setLeg2(leg2);
+        legs.add(leg2);
 
         TaxLegVelocityData leg3 = new TaxLegVelocityData();
         leg3.setDepartsDateTime("250608 05:30");
@@ -68,8 +75,9 @@ public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEng
         leg3.setOperatedCarrier("DL");
         leg3.setOperatedFlightNo(2406);
         leg3.setFareIndex(1);
+        leg3.setTransferTypeLeg(true);
         leg3.setTransferType("CONNECTION");
-        ctx.setLeg3(leg3);
+        legs.add(leg3);
 
         TaxLegVelocityData leg4 = new TaxLegVelocityData();
         leg4.setDepartsDateTime("250608 07:00");
@@ -82,9 +90,13 @@ public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEng
         leg4.setOperatedCarrier("DL");
         leg4.setOperatedFlightNo(2420);
         leg4.setFareIndex(1);
-        ctx.setLeg4(leg4);
+        leg1.setTransferTypeLeg(false);
+        legs.add(leg4);
+
+        ctx.setLegs(legs);
 
         //Non-leg data
+        ctx.setTripType("ROUND_TRIP");
         ctx.setFareOwningCarrier("DL");
         ctx.setTicketDate("250429");
         ctx.setValidatingCarrier("DL");

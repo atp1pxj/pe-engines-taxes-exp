@@ -22,7 +22,6 @@ public abstract class AbstractEngineRequestBuilder<T> {
 
     protected VelocityEngine velocityEngine;
 
-    //public abstract PEHttpServiceRequest buildRequest(PEExpandedInputRequest request);
     public abstract String buildRequest(PEItinerary itinerary);
 
     public AbstractEngineRequestBuilder() {

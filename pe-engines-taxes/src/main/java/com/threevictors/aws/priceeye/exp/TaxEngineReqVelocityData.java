@@ -2,18 +2,15 @@ package com.threevictors.aws.priceeye.exp;
 
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 public class TaxEngineReqVelocityData {
 
-    //TODO
-    //For now create 4 legs and see
-    //Later change to looping
-    private TaxLegVelocityData leg1;
-    private TaxLegVelocityData leg2;
-    private TaxLegVelocityData leg3;
-    private TaxLegVelocityData leg4;
-
+    private List<TaxLegVelocityData> legs;
     private String fareOwningCarrier;
+    private String tripType;//ONE_WAY, ROUND_TRIP
+
     private String ticketDate;
     private String validatingCarrier;
 }

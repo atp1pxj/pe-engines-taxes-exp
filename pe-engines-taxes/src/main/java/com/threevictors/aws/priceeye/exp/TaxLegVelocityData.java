@@ -8,7 +8,7 @@ public class TaxLegVelocityData {
     private String departsDateTime;
     private String arrivesDateTime;
 
-    //TODO: this needs to be dyamically determined when determining the order of the leg through looping
+    //This will be dynamically determined through looping
     private int legId;
 
     private String originCode;
@@ -18,11 +18,6 @@ public class TaxLegVelocityData {
     private String operatedCarrier;
     private int operatedFlightNo;
     private int fareIndex;
-    //TODO: this needs to be dynamically determined when determining the order of the leg through looping
+    private boolean isTransferTypeLeg;
     private String transferType;
-
-    //"${ctx.leg1.arrivesDateTime}"
-    //${ctx.leg1.legId}
-
-
 }
