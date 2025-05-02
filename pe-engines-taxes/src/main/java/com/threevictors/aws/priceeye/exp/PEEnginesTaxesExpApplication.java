@@ -4,19 +4,15 @@ package com.threevictors.aws.priceeye.exp;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import java.text.SimpleDateFormat;
 
 import com.threevictors.aws.data.priceeye.PEItinerary;
+import com.threevictors.aws.priceeye.exp.loader.PEItinerariesLoader;
+import com.threevictors.aws.priceeye.exp.velocity.builder.TaxEngineRequestBuilder;
 import net.atpco.ash.enums.LegIndicatorType;
 import net.atpco.engine.common.types.TransferType;
 import net.atpco.fare.domain.types.TripType;
-import net.atpco.pfc.engine.configuration.PFCEngineConfiguration;
-import net.atpco.service.fee.client.request.TaxServiceFeeQuery;
-import net.atpco.taxes.configuration.TaxesEngineConfiguration;
-import net.atpco.taxes.engine.service.TaxService;
 import net.atpco.service.fee.client.request.TaxServiceFeeQuery;
 import net.atpco.service.fee.client.request.TaxItinerary;
-import net.atpco.service.fee.client.request.ServiceFeeInfo;
 import net.atpco.service.fee.client.request.FareInfo;
 import java.math.BigDecimal;
 import java.net.URISyntaxException;
@@ -27,18 +23,12 @@ import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
-import net.atpco.yqyr.engine.configuration.YqYrEngineConfiguration;
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import java.math.BigDecimal;
-import java.time.LocalDate;
 //import java.time.LocalDateRange;
 import java.util.Arrays;
 import java.util.ArrayList;
 import net.atpco.ash.location.vo.*;
 import net.atpco.service.fee.client.request.TaxServiceFeeLeg;
 import org.apache.http.client.utils.URIBuilder;
-import org.springframework.boot.SpringApplication;
-import org.springframework.context.ApplicationContext;
 
 //Worked when I used snapshot
 //import net.atpco.service.fee.configuration.ServiceFeeEngineConfiguration;
@@ -58,38 +48,50 @@ public class PEEnginesTaxesExpApplication {
         PEEnginesTaxesExpApplication currentApp = new PEEnginesTaxesExpApplication();
         TaxEngineRequestBuilder taxEngineRequestBuilder = new TaxEngineRequestBuilder();
 
-        /*  TODO:
+        PEItinerariesLoader peItinerariesLoader = new PEItinerariesLoader();
+        List<PEItinerary> itins = peItinerariesLoader.readPEItineraries("pe-engines-taxes/src/main/resources/itineraries.txt");
 
-            (D)First, stub the TaxServiceFeeQuery object and the other booleans as per the
+        //Print the itineraries. Just for testing
+        /*for (PEItinerary itin : itins) {
+            System.out.println(itin);
+        }*/
+
+        /*
+            First, stub the TaxServiceFeeQuery object and the other booleans as per the
             required signature on how the TaxesController makes the call.
+            Stub a PEItinerary object with some values and transform it to TaxServiceFeeQuery query and make the call.
+            Print the calculated taxes.
+            Note that the PEItinerary does not have basefare, so start with a value of 1 or 100 and see how it goes.
+        */
 
-            (D)Stub with values examined from the POST request made on local.
-            (D)Print the calculated taxes.
+        int loopCounter = 0;
+        for (PEItinerary currentItin : itins) {
 
+            String reqBody = taxEngineRequestBuilder.buildRequest(currentItin);
 
-            If I am getting some successful response, then the plan is to stub a PEItinerary object
-            with some values and transform it to TaxServiceFeeQuery query and make the call.
-            Note that the PEItinerary does not have basefare, so start with a value of 1 or 100 and see how it goes.*/
+            //Make a call to Engines with the json string
+            HttpResponse<String> response = currentApp.sendRequest(getBaseUri() + "/tax", "POST", reqBody, null);
 
-        //Stub is created from the velocityTemplate.
-        // This is because the TaxServiceFeeQuery object did not yield a JSON String that was properly working.
-        //TODO: Stub a proper PEItinerary object (mostly by running a system test for AS or UA and use that to populate)
-         String reqBody = taxEngineRequestBuilder.buildRequest(new PEItinerary());
+            if(response != null){
+                System.out.println("Response code: " + response.statusCode());
+                System.out.println("Response body: " + response.body());
+                System.out.println("\n");
+                System.out.println("Done with loopcount = " + ++loopCounter);
+                System.out.println("\n\n");
+                //Wait 2 seconds before the next call
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
 
-        //String reqBody = "{\"itinerary\":{\"taxLegs\":[{\"departs\":\"250601 08:10\",\"arrives\":\"250601 20:00\",\"legId\":1,\"origin\":{\"type\":\"P\",\"code\":\"JFK\"},\"destination\":{\"type\":\"P\",\"code\":\"LHR\"},\"marketedCarrier\":\"DL\",\"marketedFlightNo\":5996,\"operatedCarrier\":\"VA\",\"operatedFlightNo\":5996,\"rbd\":\"\",\"legIndicator\":\"F\",\"fareIndex\":0,\"transferType\":\"STOP_OVER\",\"involuntary\":false},{\"departs\":\"250608 09:35\",\"arrives\":\"250608 12:45\",\"legId\":2,\"origin\":{\"type\":\"P\",\"code\":\"LHR\"},\"destination\":{\"type\":\"P\",\"code\":\"JFK\"},\"marketedCarrier\":\"DL\",\"marketedFlightNo\":5997,\"operatedCarrier\":\"VA\",\"operatedFlightNo\":5997,\"rbd\":\"\",\"legIndicator\":\"F\",\"fareIndex\":0,\"involuntary\":false}]},\"fares\":[{\"fareBasisTicketDesignator\":\"\",\"tariff\":0,\"privateTariff\":false,\"domesticFare\":false,\"fareOwningCarrier\":\"DL\",\"tripType\":\"ROUND_TRIP\",\"fareAmount\":0.01,\"fareCurrency\":\"USD\"},{\"fareBasisTicketDesignator\":\"\",\"tariff\":0,\"privateTariff\":false,\"domesticFare\":false,\"fareOwningCarrier\":\"DL\",\"tripType\":\"ROUND_TRIP\",\"fareAmount\":0.01,\"fareCurrency\":\"USD\"}],\"ticketDate\":\"250429\",\"validatingCarrier\":\"DL\",\"pointOfSale\":{\"type\":\"N\",\"code\":\"US\"},\"pointOfTicketing\":{\"type\":\"N\",\"code\":\"US\"},\"faresTotal\":0.02,\"feesTotal\":0.00,\"ticketCurrency\":\"USD\",\"responseCurrency\":\"USD\",\"enableDiagnostics\":true,\"includeExemptSequence\":true,\"involuntary\":false}";
-        //Make a call to Engines
-        HttpResponse<String> response = currentApp.sendRequest(getBaseUri() + "/tax", "POST", reqBody, null);
+            } else {
+                System.out.println("Response is null");
+            }
 
-        if(response != null){
-            System.out.println("Response code: " + response.statusCode());
-            System.out.println("Response body: " + response.body());
-        } else {
-            System.out.println("Response is null");
         }
 
     }//End of main method.
-
-
 
 
 
@@ -144,13 +146,14 @@ public class PEEnginesTaxesExpApplication {
         return requestBuilder.build();
     }
 
-    //TODO: this needs to be updated later
+    //TODO: this needs to be updated later. Maybe read from a config file on s3
     public static String getBaseUri(){
         return "http://tax-sfe-service.engines-stg.use1.atpco.local";
     }
 
 
-
+    //Ignore
+    //Old method to build TaxServiceFeeQuery type
     private TaxServiceFeeQuery createTaxServiceFeeQueryStub() {
         TaxServiceFeeQuery taxServiceFeeQueryStub = TaxServiceFeeQuery.builder()
                 .itinerary(new TaxItinerary(buildTaxServiceFeeLegs()))
@@ -204,6 +207,7 @@ public class PEEnginesTaxesExpApplication {
     }
 
 
+    //Ignore
     //Helper method to create the TaxServiceFeeLeg types
     private static List<TaxServiceFeeLeg> buildTaxServiceFeeLegs(){
 
@@ -272,6 +276,7 @@ public class PEEnginesTaxesExpApplication {
 
     }
 
+    //Ignore
     // Helper method to parse date string in format "YYMMDD HH:mm"
     private static Date parseDateTime(String dateTimeStr, boolean isTimeIncluded) {
         Calendar cal = Calendar.getInstance();

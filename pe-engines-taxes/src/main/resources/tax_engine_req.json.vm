@@ -16,7 +16,7 @@
           },
           "marketedCarrier": "${leg.marketedCarrier}",
           "marketedFlightNo": ${leg.marketedFlightNo},
-          "operatedCarrier": "${leg.operatedCarrier}",
+          "operatedCarrier": "$!{leg.operatedCarrier}",
           "operatedFlightNo": ${leg.operatedFlightNo},
           "rbd": "",
           "legIndicator": "F",

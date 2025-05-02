@@ -1,4 +1,4 @@
-package com.threevictors.aws.priceeye.exp;
+package com.threevictors.aws.priceeye.exp.velocity.data;
 
 import lombok.Data;
 

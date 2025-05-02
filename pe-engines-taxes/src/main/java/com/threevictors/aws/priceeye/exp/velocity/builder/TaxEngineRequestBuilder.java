@@ -1,8 +1,9 @@
-package com.threevictors.aws.priceeye.exp;
+package com.threevictors.aws.priceeye.exp.velocity.builder;
 
-import com.google.gson.annotations.SerializedName;
 import com.threevictors.aws.data.aws.RawLeg;
 import com.threevictors.aws.data.priceeye.*;
+import com.threevictors.aws.priceeye.exp.velocity.data.TaxEngineReqVelocityData;
+import com.threevictors.aws.priceeye.exp.velocity.data.TaxLegVelocityData;
 import lombok.Data;
 
 import java.util.ArrayList;
@@ -24,7 +25,7 @@ public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEng
     private String buildJSONRequest(PEItinerary peItinerary) {
 
         TaxEngineReqVelocityData ctx = new TaxEngineReqVelocityData();
-        stubPEItinerary(peItinerary);
+        //stubPEItinerary(peItinerary);
         stubTaxEngineReqVelocityData(ctx, peItinerary);
 
         String velocityData = runVelocity(ctx, "tax_engine_req.json.vm");
@@ -75,7 +76,9 @@ public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEng
 
         List<TaxLegVelocityData> legs = new ArrayList<>();
 
-        for (RawLeg leg : peItinerary.getOutboundLegs()) {
+        //for (RawLeg leg : peItinerary.getOutboundLegs()) {
+        for (int i = 0; i < peItinerary.getOutboundLegs().size(); i++) {
+            RawLeg leg = peItinerary.getOutboundLegs().get(i);
             TaxLegVelocityData legData = new TaxLegVelocityData();
             legData.setDepartsDateTime(leg.getDepartDate() + " " + String.format("%02d:%02d", leg.getDepartTime()/100, leg.getDepartTime()%100));
             legData.setArrivesDateTime(leg.getArriveDate() + " " + String.format("%02d:%02d", leg.getArriveTime()/100, leg.getArriveTime()%100));
@@ -84,12 +87,22 @@ public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEng
             legData.setMarketedCarrier(leg.getMarketingCarrier());
             legData.setOperatedCarrier(leg.getOperatingCarrier());
             legData.setMarketedFlightNo(leg.getFlightNumber());
-            legData.setTransferTypeLeg(true);
-            legData.setTransferType("STOP_OVER");
+            if (i < peItinerary.getOutboundLegs().size() - 1) {
+                legData.setTransferTypeLeg(true);
+                legData.setTransferType("CONNECTION");
+            }
+            //NOTE: For outbound, last leg, we set transferType to STOP_OVER
+            if (i == peItinerary.getOutboundLegs().size()-1) {
+                legData.setTransferTypeLeg(true);
+                legData.setTransferType("STOP_OVER");
+            }
+
             legs.add(legData);
         }
 
-        for (RawLeg leg : peItinerary.getInboundLegs()) {
+       // for (RawLeg leg : peItinerary.getInboundLegs()) {
+        for (int i = 0; i < peItinerary.getInboundLegs().size(); i++) {
+            RawLeg leg = peItinerary.getInboundLegs().get(i);
             TaxLegVelocityData legData = new TaxLegVelocityData();
             legData.setDepartsDateTime(leg.getDepartDate() + " " + String.format("%02d:%02d", leg.getDepartTime()/100, leg.getDepartTime()%100));
             legData.setArrivesDateTime(leg.getArriveDate() + " " + String.format("%02d:%02d", leg.getArriveTime()/100, leg.getArriveTime()%100));
@@ -98,19 +111,33 @@ public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEng
             legData.setMarketedCarrier(leg.getMarketingCarrier());
             legData.setOperatedCarrier(leg.getOperatingCarrier());
             legData.setMarketedFlightNo(leg.getFlightNumber());
-            legData.setTransferTypeLeg(false);
+            if (i < peItinerary.getInboundLegs().size() - 1) {
+                legData.setTransferTypeLeg(true);
+                legData.setTransferType("CONNECTION");
+            }
+            //NOTE: For inbound, last leg, we dont set transferType
             legs.add(legData);
         }
 
         ctx.setLegs(legs);
 
-        //Non-leg data
+        //TODO: What field on the PEItinerary is the TripType? Not able to find it on the legs either
         ctx.setTripType("ROUND_TRIP");
+        ctx.setFareOwningCarrier(peItinerary.getOutboundLegs().get(0).getMarketingCarrier());
+        //TODO: What field on the PEItinerary is the ticketDate? Not able to find it on the legs either. Should it be today's date?
+        ctx.setTicketDate("250502");
+        ctx.setValidatingCarrier(peItinerary.getOutboundLegs().get(0).getMarketingCarrier());
+        ctx.setCurrency(peItinerary.getCurrency());
+        ctx.setTotalPrice(peItinerary.getTotalPrice());
+
+
+        //Non-leg data
+        /*ctx.setTripType("ROUND_TRIP");
         ctx.setFareOwningCarrier("DL");
         ctx.setTicketDate("250429");
         ctx.setValidatingCarrier("DL");
         ctx.setCurrency(peItinerary.getCurrency());
-        ctx.setTotalPrice(peItinerary.getTotalPrice());
+        ctx.setTotalPrice(peItinerary.getTotalPrice());*/
     }
 
 
