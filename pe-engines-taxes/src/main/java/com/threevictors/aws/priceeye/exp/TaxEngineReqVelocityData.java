@@ -13,4 +13,10 @@ public class TaxEngineReqVelocityData {
 
     private String ticketDate;
     private String validatingCarrier;
+
+    private String currency;
+    private String fareBasisCode;
+    private double totalPrice;
+
+
 }

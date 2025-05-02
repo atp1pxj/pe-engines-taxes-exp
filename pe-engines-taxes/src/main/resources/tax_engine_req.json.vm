@@ -37,7 +37,7 @@
       "fareOwningCarrier": "${ctx.fareOwningCarrier}",
       "tripType": "${ctx.tripType}",
     "fareAmount": #if(${ctx.tripType} == "ONE_WAY")100.00#{else}50.00#end,
-      "fareCurrency": "USD"
+      "fareCurrency": "${ctx.currency}"
     }#if(${ctx.tripType} == "ROUND_TRIP"),
       {
         "fareBasisTicketDesignator": "",
@@ -47,7 +47,7 @@
         "fareOwningCarrier": "${ctx.fareOwningCarrier}",
         "tripType": "${ctx.tripType}",
         "fareAmount": 50.00,
-        "fareCurrency": "USD"
+        "fareCurrency": "${ctx.currency}"
       }#end
   ],
   "ticketDate": "${ctx.ticketDate}",
@@ -60,10 +60,10 @@
     "type": "N",
     "code": "US"
   },
-"faresTotal": #if(${ctx.tripType} == "ONE_WAY")100.00#{else}100.00#end,
+"faresTotal": #if(${ctx.tripType} == "ONE_WAY")${ctx.totalPrice}#{else}${ctx.totalPrice}#end,
   "feesTotal": 0.00,
-  "ticketCurrency": "USD",
-  "responseCurrency": "USD",
+  "ticketCurrency": "${ctx.currency}",
+  "responseCurrency": "${ctx.currency}",
   "enableDiagnostics": true,
   "includeExemptSequence": false,
   "involuntary": false

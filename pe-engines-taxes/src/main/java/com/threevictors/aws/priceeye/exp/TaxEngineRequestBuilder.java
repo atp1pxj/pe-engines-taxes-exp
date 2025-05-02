@@ -1,6 +1,8 @@
 package com.threevictors.aws.priceeye.exp;
 
-import com.threevictors.aws.data.priceeye.PEItinerary;
+import com.google.gson.annotations.SerializedName;
+import com.threevictors.aws.data.aws.RawLeg;
+import com.threevictors.aws.data.priceeye.*;
 import lombok.Data;
 
 import java.util.ArrayList;
@@ -20,16 +22,102 @@ public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEng
     }
 
     private String buildJSONRequest(PEItinerary peItinerary) {
-        //TODO: Eventually use the peItinerary object values to populate the ctx object
+
         TaxEngineReqVelocityData ctx = new TaxEngineReqVelocityData();
-        stubTaxEngineReqVelocityData(ctx);
+        stubPEItinerary(peItinerary);
+        stubTaxEngineReqVelocityData(ctx, peItinerary);
+
         String velocityData = runVelocity(ctx, "tax_engine_req.json.vm");
         return velocityData;
         //return runVelocity(ctx, "tax_engine_req.json.vm");
     }
 
-    //TODO: Temp method. Need to build one based on loops
-    private void stubTaxEngineReqVelocityData(TaxEngineReqVelocityData ctx) {
+    private void stubPEItinerary(PEItinerary peItinerary) {
+
+        List<RawLeg> outboundLegs;
+        outboundLegs = new ArrayList<>();
+
+        RawLeg outboundLeg = new RawLeg();
+        outboundLeg.setDepartDate(250601);
+        outboundLeg.setDepartTime(810);
+        outboundLeg.setArriveDate(250601);
+        outboundLeg.setArriveTime(2000);
+        outboundLeg.setOriginAirportCode("JFK");
+        outboundLeg.setDestinationAirportCode("LAX");
+        outboundLeg.setMarketingCarrier("DL");
+        outboundLeg.setOperatingCarrier("DL");
+        outboundLeg.setFlightNumber(1);
+        outboundLegs.add(outboundLeg);
+
+        List<RawLeg> inboundLegs;
+        inboundLegs = new ArrayList<>();
+        RawLeg inboundLeg = new RawLeg();
+        inboundLeg.setDepartDate(250608);
+        inboundLeg.setDepartTime(935);
+        inboundLeg.setArriveDate(250608);
+        inboundLeg.setArriveTime(1245);
+        inboundLeg.setOriginAirportCode("LAX");
+        inboundLeg.setDestinationAirportCode("JFK");
+        inboundLeg.setMarketingCarrier("DL");
+        inboundLeg.setOperatingCarrier("DL");
+        inboundLeg.setFlightNumber(2);
+        inboundLegs.add(inboundLeg);
+
+        //For PEItinerary - you need currency, totalPrice, outboundLegs, inboundLegs
+        peItinerary.setCurrency("USD");
+        peItinerary.setTotalPrice(1000.00);
+        peItinerary.setOutboundLegs(outboundLegs);
+        peItinerary.setInboundLegs(inboundLegs);
+    }
+
+
+    private void stubTaxEngineReqVelocityData(TaxEngineReqVelocityData ctx, PEItinerary peItinerary) {
+
+        List<TaxLegVelocityData> legs = new ArrayList<>();
+
+        for (RawLeg leg : peItinerary.getOutboundLegs()) {
+            TaxLegVelocityData legData = new TaxLegVelocityData();
+            legData.setDepartsDateTime(leg.getDepartDate() + " " + String.format("%02d:%02d", leg.getDepartTime()/100, leg.getDepartTime()%100));
+            legData.setArrivesDateTime(leg.getArriveDate() + " " + String.format("%02d:%02d", leg.getArriveTime()/100, leg.getArriveTime()%100));
+            legData.setOriginCode(leg.getOriginAirportCode());
+            legData.setDestinationCode(leg.getDestinationAirportCode());
+            legData.setMarketedCarrier(leg.getMarketingCarrier());
+            legData.setOperatedCarrier(leg.getOperatingCarrier());
+            legData.setMarketedFlightNo(leg.getFlightNumber());
+            legData.setTransferTypeLeg(true);
+            legData.setTransferType("STOP_OVER");
+            legs.add(legData);
+        }
+
+        for (RawLeg leg : peItinerary.getInboundLegs()) {
+            TaxLegVelocityData legData = new TaxLegVelocityData();
+            legData.setDepartsDateTime(leg.getDepartDate() + " " + String.format("%02d:%02d", leg.getDepartTime()/100, leg.getDepartTime()%100));
+            legData.setArrivesDateTime(leg.getArriveDate() + " " + String.format("%02d:%02d", leg.getArriveTime()/100, leg.getArriveTime()%100));
+            legData.setOriginCode(leg.getOriginAirportCode());
+            legData.setDestinationCode(leg.getDestinationAirportCode());
+            legData.setMarketedCarrier(leg.getMarketingCarrier());
+            legData.setOperatedCarrier(leg.getOperatingCarrier());
+            legData.setMarketedFlightNo(leg.getFlightNumber());
+            legData.setTransferTypeLeg(false);
+            legs.add(legData);
+        }
+
+        ctx.setLegs(legs);
+
+        //Non-leg data
+        ctx.setTripType("ROUND_TRIP");
+        ctx.setFareOwningCarrier("DL");
+        ctx.setTicketDate("250429");
+        ctx.setValidatingCarrier("DL");
+        ctx.setCurrency(peItinerary.getCurrency());
+        ctx.setTotalPrice(peItinerary.getTotalPrice());
+    }
+
+
+
+
+    //This stubbing is for 2 legs each way JFK - CHA  and back
+    private void stubTaxEngineReqVelocityDataOld(TaxEngineReqVelocityData ctx) {
 
         List<TaxLegVelocityData> legs = new ArrayList<>();
 
