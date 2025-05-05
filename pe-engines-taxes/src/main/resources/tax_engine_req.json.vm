@@ -60,7 +60,7 @@
     "type": "N",
     "code": "US"
   },
-"faresTotal": #if(${ctx.tripType} == "ONE_WAY")${ctx.totalPrice}#{else}${ctx.totalPrice}#end,
+"faresTotal": 100.00,
   "feesTotal": 0.00,
   "ticketCurrency": "${ctx.currency}",
   "responseCurrency": "${ctx.currency}",
