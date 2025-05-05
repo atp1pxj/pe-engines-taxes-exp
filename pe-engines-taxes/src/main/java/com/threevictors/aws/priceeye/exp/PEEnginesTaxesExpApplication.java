@@ -5,6 +5,7 @@ package com.threevictors.aws.priceeye.exp;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
+import com.google.gson.JsonObject;
 import com.threevictors.aws.data.priceeye.PEItinerary;
 import com.threevictors.aws.priceeye.exp.loader.PEItinerariesLoader;
 import com.threevictors.aws.priceeye.exp.loader.X1TaxRecordDataPointsLoader;
@@ -82,6 +83,11 @@ public class PEEnginesTaxesExpApplication {
 
             String reqBody = taxEngineRequestBuilder.buildRequest(currentItin);
 
+            JsonObject jsonObject = new Gson().fromJson(reqBody, JsonObject.class);
+            int taxLegsCount = jsonObject.getAsJsonObject("itinerary")
+                    .getAsJsonArray("taxLegs")
+                    .size();
+
             //Make a call to Engines with the json string
             HttpResponse<String> response = currentApp.sendRequest(getBaseUri() + "/tax", "POST", reqBody, null);
 
@@ -102,7 +108,7 @@ public class PEEnginesTaxesExpApplication {
                 RootResponse convertedResponse = (RootResponse) convert(response.body(), RootResponse.class);
                 System.out.println("Converted response for currentItin: " + convertedResponse);
 
-                examineTaxes(convertedResponse, currentItin);
+                examineTaxes(convertedResponse, currentItin, taxLegsCount);
 
             } else {
                 System.out.println("Response is null");
@@ -117,7 +123,7 @@ public class PEEnginesTaxesExpApplication {
         You can implement your logic here to process the taxes as needed.
         For now, it just prints the response.
      */
-    private static void examineTaxes(RootResponse convertedResponse, PEItinerary currentItin) {
+    private static void examineTaxes(RootResponse convertedResponse, PEItinerary currentItin, int taxLegsCount) {
 
         System.out.println("\nExamining taxes for currentItin: " + currentItin);
 
@@ -183,6 +189,15 @@ public class PEEnginesTaxesExpApplication {
                         double itinTpDeductedWithFlatTaxes = itinTpDeductedWithTaxes;
                         System.out.println("itinTpDeductedWithFlatTaxes: " + itinTpDeductedWithFlatTaxes);
 
+                        //subtract PFC
+                        System.out.println("taxLegsCount: " + taxLegsCount);
+                        //PFC = 4.50 per leg
+                        double pfcTaxes = taxLegsCount * 4.50;
+                        //double itinTpDeductedWithFlatTaxesAndPFC = Math.round((itinTpDeductedWithFlatTaxes - (taxLegsCount * 4.50)) * 100.0) / 100.0;
+                        double itinTpDeductedWithFlatTaxesAndPFC = Math.round((itinTpDeductedWithFlatTaxes - pfcTaxes) * 100.0) / 100.0;
+                        System.out.println("itinTpDeductedWithFlatTaxesAndPFC: " + itinTpDeductedWithFlatTaxesAndPFC);
+
+
                         double percentTaxTotalAmount  = 0.0;
                         double percentTaxTotal  = 0.0;
 
@@ -202,15 +217,17 @@ public class PEEnginesTaxesExpApplication {
                             X(1.1) = 500
                             X=500/1.1
                             So percentTaxTotalAmount = (500 - (500/1.1)) rounded up*/
-                        System.out.println("percentTaxTotal: " + percentTaxTotal + "% will be applied on itinTpDeductedWithFlatTaxes = " + itinTpDeductedWithFlatTaxes+  " as per the equation (itinTpDeductedWithFlatTaxes - (itinTpDeductedWithFlatTaxes / (1 + (percentTaxTotal / 100.0)))");
-                        percentTaxTotalAmount = Math.round((itinTpDeductedWithFlatTaxes - (itinTpDeductedWithFlatTaxes / (1 + (percentTaxTotal / 100.0)))) * 100.0) / 100.0;
+                        System.out.println("percentTaxTotal: " + percentTaxTotal + "% will be applied on itinTpDeductedWithFlatTaxesAndPFC = " + itinTpDeductedWithFlatTaxesAndPFC +  " as per the equation (itinTpDeductedWithFlatTaxes - (itinTpDeductedWithFlatTaxes / (1 + (percentTaxTotal / 100.0)))");
+                        percentTaxTotalAmount = Math.round((itinTpDeductedWithFlatTaxesAndPFC - (itinTpDeductedWithFlatTaxesAndPFC / (1 + (percentTaxTotal / 100.0)))) * 100.0) / 100.0;
 
 
                         System.out.println("percentTaxTotalAmount: " + percentTaxTotalAmount);
                         System.out.println("percentTaxTotalAmount + totalFlatTaxAmount : = " + (percentTaxTotalAmount + totalFlatTaxAmount));
-                        itinTpDeductedWithTaxes = Math.round((itinTpDeductedWithTaxes - percentTaxTotalAmount) * 100.0) / 100.0;
 
-                        System.out.println("ItinTP after flattax and percentTax removed (but still contains PFC): " + itinTpDeductedWithTaxes);
+                        //itinTpDeductedWithTaxes = Math.round((itinTpDeductedWithTaxes - percentTaxTotalAmount) * 100.0) / 100.0;
+                        itinTpDeductedWithTaxes = Math.round((itinTpDeductedWithFlatTaxesAndPFC - percentTaxTotalAmount) * 100.0) / 100.0;
+
+                        System.out.println("ItinTP after flattax, pfc taxes and percentTax removed : " + itinTpDeductedWithTaxes);
 
                     } else {
                         System.out.println("No taxes found");
