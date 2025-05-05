@@ -61,21 +61,15 @@ public class PEEnginesTaxesExpApplication {
         X1TaxRecordDataPointsLoader x1TaxRecordDataPointsLoader = new X1TaxRecordDataPointsLoader();
         x1TaxRecordDataPointsMap = x1TaxRecordDataPointsLoader.loadTaxRecordDataPoints("pe-engines-taxes/src/main/resources/xldatapoints_all_taxrecs_from_redis_all.txt");
 
-
         PEItinerariesLoader peItinerariesLoader = new PEItinerariesLoader();
         List<PEItinerary> itins = peItinerariesLoader.readPEItineraries("pe-engines-taxes/src/main/resources/itineraries.txt");
-
-        //Print the itineraries. Just for testing
-        /*for (PEItinerary itin : itins) {
-            System.out.println(itin);
-        }*/
 
         /*
             First, stub the TaxServiceFeeQuery object and the other booleans as per the
             required signature on how the TaxesController makes the call.
             Stub a PEItinerary object with some values and transform it to TaxServiceFeeQuery query and make the call.
             Print the calculated taxes.
-            Note that the PEItinerary does not have basefare, so start with a value of 1 or 100 and see how it goes.
+            Note that the PEItinerary does not have basefare, so start with a value of 100 as the totalFare.
         */
 
         int loopCounter = 0;
@@ -104,7 +98,6 @@ public class PEEnginesTaxesExpApplication {
                     e.printStackTrace();
                 }
 
-                //wrap it in try-catch later
                 RootResponse convertedResponse = (RootResponse) convert(response.body(), RootResponse.class);
                 System.out.println("Converted response for currentItin: " + convertedResponse);
 
@@ -139,7 +132,7 @@ public class PEEnginesTaxesExpApplication {
                 for(ExecutionResponse executionResponse : executionResponses){
                     //Get the taxes
                     ArrayList<Taxes> taxes = executionResponse.getTaxes();
-                    //Flat tax -> Map
+                    //Map containing the flat tax and percent tax values respectively.
                     Map<String, List<Double>> flatOrPercentValuesMap = new HashMap<>();
 
                     //for each tax in taxes get the chargeDetails
@@ -185,18 +178,16 @@ public class PEEnginesTaxesExpApplication {
 
                         //subtract total flatTaxAmopunt
                         itinTpDeductedWithTaxes -= totalFlatTaxAmount;
-
                         double itinTpDeductedWithFlatTaxes = itinTpDeductedWithTaxes;
                         System.out.println("itinTpDeductedWithFlatTaxes: " + itinTpDeductedWithFlatTaxes);
 
                         //subtract PFC
                         System.out.println("taxLegsCount: " + taxLegsCount);
-                        //PFC = 4.50 per leg
-                        double pfcTaxes = taxLegsCount * 4.50;
-                        //double itinTpDeductedWithFlatTaxesAndPFC = Math.round((itinTpDeductedWithFlatTaxes - (taxLegsCount * 4.50)) * 100.0) / 100.0;
+                        //PFC = 4.50 per leg. Cap it at 18.00
+                        double pfcTaxes = Math.min(taxLegsCount * 4.50, 18.00);
+                        System.out.println("pfcTaxes: " + pfcTaxes);
                         double itinTpDeductedWithFlatTaxesAndPFC = Math.round((itinTpDeductedWithFlatTaxes - pfcTaxes) * 100.0) / 100.0;
                         System.out.println("itinTpDeductedWithFlatTaxesAndPFC: " + itinTpDeductedWithFlatTaxesAndPFC);
-
 
                         double percentTaxTotalAmount  = 0.0;
                         double percentTaxTotal  = 0.0;
@@ -217,14 +208,14 @@ public class PEEnginesTaxesExpApplication {
                             X(1.1) = 500
                             X=500/1.1
                             So percentTaxTotalAmount = (500 - (500/1.1)) rounded up*/
-                        System.out.println("percentTaxTotal: " + percentTaxTotal + "% will be applied on itinTpDeductedWithFlatTaxesAndPFC = " + itinTpDeductedWithFlatTaxesAndPFC +  " as per the equation (itinTpDeductedWithFlatTaxes - (itinTpDeductedWithFlatTaxes / (1 + (percentTaxTotal / 100.0)))");
+                        System.out.println("percentTaxTotal: " + percentTaxTotal + "% will be applied on itinTpDeductedWithFlatTaxesAndPFC = " + itinTpDeductedWithFlatTaxesAndPFC
+                                +  " as per the equation (itinTpDeductedWithFlatTaxes - (itinTpDeductedWithFlatTaxes / (1 + (percentTaxTotal / 100.0)))");
                         percentTaxTotalAmount = Math.round((itinTpDeductedWithFlatTaxesAndPFC - (itinTpDeductedWithFlatTaxesAndPFC / (1 + (percentTaxTotal / 100.0)))) * 100.0) / 100.0;
 
 
                         System.out.println("percentTaxTotalAmount: " + percentTaxTotalAmount);
                         System.out.println("percentTaxTotalAmount + totalFlatTaxAmount : = " + (percentTaxTotalAmount + totalFlatTaxAmount));
 
-                        //itinTpDeductedWithTaxes = Math.round((itinTpDeductedWithTaxes - percentTaxTotalAmount) * 100.0) / 100.0;
                         itinTpDeductedWithTaxes = Math.round((itinTpDeductedWithFlatTaxesAndPFC - percentTaxTotalAmount) * 100.0) / 100.0;
 
                         System.out.println("ItinTP after flattax, pfc taxes and percentTax removed : " + itinTpDeductedWithTaxes);
@@ -235,7 +226,6 @@ public class PEEnginesTaxesExpApplication {
                 }
 
             }
-
 
         }
         else {
@@ -280,7 +270,6 @@ public class PEEnginesTaxesExpApplication {
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder();
         requestBuilder.setHeader("Content-Type", "application/json");
 
-        //TODO: Added Accept header
         requestBuilder.setHeader("Accept", "application/json");
         //requestBuilder.setHeader("x-api-key", getApiKey());
         //requestBuilder.setHeader( "Authorization", accessToken );
@@ -310,149 +299,5 @@ public class PEEnginesTaxesExpApplication {
     public static String getBaseUri(){
         return "http://tax-sfe-service.engines-stg.use1.atpco.local";
     }
-
-
-    //Ignore
-    //Old method to build TaxServiceFeeQuery type
-    private TaxServiceFeeQuery createTaxServiceFeeQueryStub() {
-        TaxServiceFeeQuery taxServiceFeeQueryStub = TaxServiceFeeQuery.builder()
-                .itinerary(new TaxItinerary(buildTaxServiceFeeLegs()))
-                //.serviceFees()
-                .fares(Arrays.asList(
-                        FareInfo.builder()
-                                .fareBasisTicketDesignator("")
-                                //.fareTypeCode(null)
-                                .tariff(0)
-                                .privateTariff(false)
-                                .domesticFare(false)
-                                .fareOwningCarrier("DL")
-                                //.rule(null)
-                                .tripType(TripType.ROUND_TRIP)
-                                //.passengerType(null)
-                                .fareAmount(new BigDecimal("0.01"))
-                                .fareCurrency("USD")
-                                .build(),
-                        FareInfo.builder()
-                                .fareBasisTicketDesignator("")
-                                //.fareTypeCode(null)
-                                .tariff(0)
-                                .privateTariff(false)
-                                .domesticFare(false)
-                                .fareOwningCarrier("DL")
-                                //.rule(null)
-                                .tripType(TripType.ROUND_TRIP)
-                                //.passengerType(null)
-                                .fareAmount(new BigDecimal("0.01"))
-                                .fareCurrency("USD")
-                                .build()
-                ))
-                .ticketDate(parseDateTime("20250429", false))
-                //.equivalentFaresTotal(null)
-                .validatingCarrier("DL")
-                .pointOfSale(new Country("US", 1, 100))
-                .pointOfTicketing(new Country("US", 1, 100))
-                .faresTotal(new BigDecimal("0.02"))
-                .feesTotal(new BigDecimal("0.00"))
-                .ticketCurrency("USD")
-                .enableDiagnostics(true)
-                .includeExemptSequence(true)
-                .build();
-
-        //Setting addl fields on taxServiceFeeQueryStub that are not in the builder option
-        taxServiceFeeQueryStub.setResponseCurrency("USD");
-        taxServiceFeeQueryStub.setInvoluntary(false);
-        System.out.println("taxServiceFeeQueryStub: " + taxServiceFeeQueryStub);
-
-        return taxServiceFeeQueryStub;
-    }
-
-
-    //Ignore
-    //Helper method to create the TaxServiceFeeLeg types
-    private static List<TaxServiceFeeLeg> buildTaxServiceFeeLegs(){
-
-        List<TaxServiceFeeLeg> taxServiceFeeLegs = new ArrayList<>();
-
-        //leg1
-        TaxServiceFeeLeg leg1 = new TaxServiceFeeLeg();
-
-        leg1.setDeparts(parseDateTime("250601 08:10", true));
-        leg1.setArrives(parseDateTime("250601 20:00", true));
-        leg1.setLegId(1);
-
-        //Not working
-        // Using a simpler approach to set the origin
-        //leg1.setOrigin(new Airport("JFK", null, null));
-        // Using a simpler approach to set the destination
-        //leg1.setDestination(new Airport("LHR", null, null));
-
-        City originCityL1 = new City("NYC", "NY", "US", 100, 1);
-        leg1.setOrigin(new Airport("JFK", originCityL1, "North America"));
-
-        City destCityL1 = new City("LON", "ENG", "GB", 304, 2);
-        leg1.setDestination(new Airport("LHR", destCityL1, "Europe"));
-
-        leg1.setMarketedCarrier("DL");
-        leg1.setMarketedFlightNo(5996);
-        leg1.setOperatedCarrier("VA");
-        leg1.setOperatedFlightNo(5996);
-        leg1.setRbd("");
-        leg1.setLegIndicator(LegIndicatorType.F);
-        leg1.setFareIndex(0);
-        leg1.setTransferType(TransferType.STOP_OVER);
-        leg1.setInvoluntary(false);
-
-        //leg2
-        TaxServiceFeeLeg leg2 = new TaxServiceFeeLeg();
-
-        leg2.setDeparts(parseDateTime("250608 09:35", true));
-        leg2.setArrives(parseDateTime("250608 12:45", true));
-        leg2.setLegId(2);
-        /*// Using a simpler approach to set the origin
-        leg2.setOrigin(new Airport("LHR", null, null));
-        // Using a simpler approach to set the destination
-        leg2.setDestination(new Airport("JFK", null, null));*/
-
-
-        City originCityL2 = new City("LON", "ENG", "GB", 304, 2);
-        leg2.setOrigin(new Airport("LHR", originCityL2, "Europe"));
-
-        City destCityL2 = new City("NYC", "NY", "US", 100, 1);
-        leg2.setDestination(new Airport("JFK", destCityL2, "North America"));
-
-        leg2.setMarketedCarrier("DL");
-        leg2.setMarketedFlightNo(5997);
-        leg2.setOperatedCarrier("VA");
-        leg2.setOperatedFlightNo(5997);
-        leg2.setRbd("");
-        leg2.setLegIndicator(LegIndicatorType.F);
-        leg2.setFareIndex(0);
-        leg2.setInvoluntary(false);
-
-        taxServiceFeeLegs.add(leg1);
-        taxServiceFeeLegs.add(leg2);
-
-        return taxServiceFeeLegs;
-
-    }
-
-    //Ignore
-    // Helper method to parse date string in format "YYMMDD HH:mm"
-    private static Date parseDateTime(String dateTimeStr, boolean isTimeIncluded) {
-        Calendar cal = Calendar.getInstance();
-        int year = 2000 + Integer.parseInt(dateTimeStr.substring(0, 2));
-        int month = Integer.parseInt(dateTimeStr.substring(2, 4)) - 1; // Calendar months are 0-based
-        int day = Integer.parseInt(dateTimeStr.substring(4, 6));
-        if (isTimeIncluded) {
-            int hour = Integer.parseInt(dateTimeStr.substring(7, 9));
-            int minute = Integer.parseInt(dateTimeStr.substring(10, 12));
-            cal.set(year, month, day, hour, minute, 0);
-        } else {
-            cal.set(year, month, day, 0, 0, 0);
-        }
-        cal.set(Calendar.MILLISECOND, 0);
-        return cal.getTime();
-    }
-
 
 }

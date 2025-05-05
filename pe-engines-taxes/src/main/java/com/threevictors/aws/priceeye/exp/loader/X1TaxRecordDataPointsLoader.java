@@ -17,7 +17,6 @@ public class X1TaxRecordDataPointsLoader {
 
     //Method to load tax record data points by reading the contents of the file and adding them to a hashmap with key as the key
     //and value as the X1TaxRecordDataPoints object
-
     public Map<String, X1TaxRecordDataPoints> loadTaxRecordDataPoints(String filePath) {
         Map<String, X1TaxRecordDataPoints> x1TaxRecordDataPointsMap = new HashMap<>();
 
