@@ -71,8 +71,10 @@ public class PEItinerariesLoader {
         itinerary.setInOutPriceIncludesTax(Boolean.parseBoolean(fieldMap.get("inOutPriceIncludesTax")));
 
         itinerary.setRefundable(Boolean.parseBoolean(fieldMap.get("refundable")));
+
         itinerary.setOutboundLegs(parseRawLegList(fieldMap.get("outboundLegs")));
         itinerary.setInboundLegs(parseRawLegList(fieldMap.get("inboundLegs")));
+
         itinerary.setObservationTimestamp(Long.parseLong(fieldMap.get("observationTimestamp")));
         itinerary.setTotalPriceEnriched(Double.parseDouble(fieldMap.get("totalPriceEnriched")));
         itinerary.setTaxesEnriched(Double.parseDouble(fieldMap.get("taxesEnriched")));
@@ -139,16 +141,18 @@ public class PEItinerariesLoader {
         leg.setOriginAirportCode(fieldMap.get("originAirportCode"));
         leg.setDestinationAirportCode(fieldMap.get("destinationAirportCode"));
 
-        leg.setDepartDate(Integer.parseInt(fieldMap.get("departDate")));
+        //Note that departDate and arriveDate are in the format yyMMdd even though itinerary is in the format yyyyMMdd.
+        // Otherwise, it would not result in some taxes on the response
+        leg.setDepartDate(Integer.parseInt(fieldMap.get("departDate").substring(2)));
         leg.setDepartTime(Integer.parseInt(fieldMap.get("departTime")));
-        leg.setArriveDate(Integer.parseInt(fieldMap.get("arriveDate")));
+
+        leg.setArriveDate(Integer.parseInt(fieldMap.get("arriveDate").substring(2)));
         leg.setArriveTime(Integer.parseInt(fieldMap.get("arriveTime")));
 
         leg.setDepartTerminal(fieldMap.get("departTerminal").equals("null") ? null : fieldMap.get("departTerminal"));
         leg.setArriveTerminal(fieldMap.get("arriveTerminal").equals("null") ? null : fieldMap.get("arriveTerminal"));
         leg.setMarketingCarrier(fieldMap.get("marketingCarrier"));
         leg.setOperatingCarrier(fieldMap.get("operatingCarrier"));
-        //leg.setFlightNumber(fieldMap.get("flightNumber"));
         leg.setFlightNumber(Integer.parseInt(fieldMap.get("flightNumber")));
         leg.setBookingCode(fieldMap.get("bookingCode"));
         leg.setFareClass(fieldMap.get("fareClass"));
@@ -157,7 +161,6 @@ public class PEItinerariesLoader {
         leg.setNumberOfSeats(Integer.parseInt(fieldMap.get("numberOfSeats")));
 
         leg.setIntermediateAirports(fieldMap.get("intermediateAirports") == null ? null : List.of(fieldMap.get("intermediateAirports")));
-        //leg.setIntermediateAirports("null".equals(fieldMap.get("intermediateAirports")) ? null : fieldMap.get("intermediateAirports"));
 
         leg.setPcc(fieldMap.get("pcc").equals("null") ? null : fieldMap.get("pcc"));
         leg.setAvailabilitySource(fieldMap.get("availabilitySource").equals("null") ? null : fieldMap.get("availabilitySource"));

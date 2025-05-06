@@ -86,11 +86,9 @@ public class PEEnginesTaxesExpApplication {
             HttpResponse<String> response = currentApp.sendRequest(getBaseUri() + "/tax", "POST", reqBody, null);
 
             if(response != null){
-                System.out.println("Response code: " + response.statusCode());
-                System.out.println("Response body: " + response.body());
                 System.out.println("\n");
-                System.out.println("Done with loopcount = " + ++loopCounter);
-                System.out.println("\n\n");
+                System.out.println("Response code: " + response.statusCode());
+                //System.out.println("Response body: " + response.body());
                 //Wait 2 seconds before the next call
                 try {
                     Thread.sleep(2000);
@@ -99,9 +97,12 @@ public class PEEnginesTaxesExpApplication {
                 }
 
                 RootResponse convertedResponse = (RootResponse) convert(response.body(), RootResponse.class);
-                System.out.println("Converted response for currentItin: " + convertedResponse);
-
+                //System.out.println("Converted response for currentItin: " + convertedResponse);
+                System.out.println("Examining Taxes...");
                 examineTaxes(convertedResponse, currentItin, taxLegsCount);
+                System.out.println("\n");
+                System.out.println("Done with loopcount = " + ++loopCounter);
+                System.out.println("\n\n");
 
             } else {
                 System.out.println("Response is null");
@@ -192,13 +193,19 @@ public class PEEnginesTaxesExpApplication {
                         double percentTaxTotalAmount  = 0.0;
                         double percentTaxTotal  = 0.0;
 
-                        List<Double> percentTaxList = flatOrPercentValuesMap.get(PERCENT_TAX);
-                        //loop through the percent tax list and get each percent tax value
-                        for (Double percentTax : percentTaxList) {
-                            //Add all percentage points values
-                            //Ex: 7.5% + 2.5% = 10%
-                            percentTaxTotal+= percentTax;
+                        List<Double> percentTaxList = flatOrPercentValuesMap.get(PERCENT_TAX) != null ? flatOrPercentValuesMap.get(PERCENT_TAX) : null;
+
+                        if(percentTaxList != null && !percentTaxList.isEmpty()){
+                            //loop through the percent tax list and get each percent tax value
+                            for (Double percentTax : percentTaxList) {
+                                //Add all percentage points values
+                                //Ex: 7.5% + 2.5% = 10%
+                                percentTaxTotal+= percentTax;
+                            }
+                        } else {
+                            System.out.println("No percent tax found");
                         }
+
 
                         /* Base Fare + Base Fare*0.075 + Flat Taxes = Total
                            Or Total Taxes = Base Fare * 0.075 + Flat Taxes.
@@ -232,9 +239,7 @@ public class PEEnginesTaxesExpApplication {
             System.out.println("Converted response is null");
         }
 
-
-
-    }
+    }//end of examineTaxes
 
 
     public static <T> List<T> convertToList( String body, Type type ) {

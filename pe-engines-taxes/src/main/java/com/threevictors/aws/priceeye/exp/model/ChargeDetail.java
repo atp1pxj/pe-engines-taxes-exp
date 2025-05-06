@@ -15,7 +15,7 @@ public class ChargeDetail {
     public String chargeCurrency;
     public double responseCharge;
     public String responseCurrency;
-    public int exchangeRate;
+    public double exchangeRate;
     public String chargeDescription;
     public boolean interlineable;
     public String taxAppliesToTag;
