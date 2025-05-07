@@ -191,7 +191,11 @@ public class PEEnginesTaxesExpApplication {
                                                //.add(x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxPercent());
                                                .add(BigDecimal.valueOf(x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxPercent()));
 
-                                       System.out.println("Percent tax found: " + currentChargeDetail.getCharge().setScale(2, BigDecimal.ROUND_HALF_UP) + " %");
+                                       System.out.println("Percent tax for MapKey: " + mapKeyLookup);
+                                       System.out.println("Percent tax found on response: " + currentChargeDetail.getCharge().setScale(2, BigDecimal.ROUND_HALF_UP) + " %");
+                                       System.out.println("Percent tax found on map: " + BigDecimal.valueOf(x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxPercent()) + " %");
+
+
                                    }
                                }//end for on chargeDetails
                          }
@@ -243,12 +247,15 @@ public class PEEnginesTaxesExpApplication {
 
                         if(percentTaxList != null && !percentTaxList.isEmpty()){
                             //loop through the percent tax list and get each percent tax value
-                            for (BigDecimal percentTax : percentTaxList) {
+                            /*for (BigDecimal percentTax : percentTaxList) {
                                 //Add all percentage points values
                                 //Ex: 7.5% + 2.5% = 10%
                                 //percentTaxTotal+= percentTax;
                                 percentTaxTotal = percentTaxTotal.add(percentTax);
-                            }
+                            }*/
+                            //Get the sum of all percent tax values
+                            percentTaxTotal = percentTaxList.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+
                         } else {
                             System.out.println("No percent tax found");
                         }
