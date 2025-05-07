@@ -6,10 +6,11 @@ import java.util.*;
 
 public class PEItinsFromCSVLoader {
 
-        public static void main(String[] args) {
+        public static void populateItinDataFromAthenaCSV() {
+
             String templateFilePath = "pe-engines-taxes/src/main/resources/PEItineraries_from_athena_csv/PEItin_template.txt";
-            String csvFilePath = "pe-engines-taxes/src/main/resources/PEItineraries_from_athena_csv/peitn_first_5_template_data.csv";
-            String outputFilePath = "pe-engines-taxes/src/main/resources/PEItineraries_from_athena_csv/PEItins_from_athena.txt";
+            String csvFilePath = "pe-engines-taxes/src/main/resources/PEItineraries_from_athena_csv/peitn_template_data_input.csv";
+            String outputFilePath = "pe-engines-taxes/src/main/resources/PEItineraries_from_athena_csv/PEItins_from_athena_generated_ouput.txt";
 
             try {
                 // Read the template

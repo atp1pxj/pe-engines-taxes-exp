@@ -8,6 +8,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.threevictors.aws.data.priceeye.PEItinerary;
 import com.threevictors.aws.priceeye.exp.loader.PEItinerariesLoader;
+import com.threevictors.aws.priceeye.exp.loader.PEItinsFromCSVLoader;
 import com.threevictors.aws.priceeye.exp.loader.X1TaxRecordDataPointsLoader;
 import com.threevictors.aws.priceeye.exp.model.*;
 import com.threevictors.aws.priceeye.exp.velocity.builder.TaxEngineRequestBuilder;
@@ -62,7 +63,19 @@ public class PEEnginesTaxesExpApplication {
         x1TaxRecordDataPointsMap = x1TaxRecordDataPointsLoader.loadTaxRecordDataPoints("pe-engines-taxes/src/main/resources/xldatapoints_all_taxrecs_from_redis_all.txt");
 
         PEItinerariesLoader peItinerariesLoader = new PEItinerariesLoader();
-        List<PEItinerary> itins = peItinerariesLoader.readPEItineraries("pe-engines-taxes/src/main/resources/itineraries.txt");
+
+        List<PEItinerary> itins = new ArrayList<>();
+
+        //NOTE: Check if the args is added or not before each run
+        //Send this args to load itins from athena's CSV data
+        if(args != null && args.length > 0 && args[0].equals("loadFromCSV")){
+            PEItinsFromCSVLoader.populateItinDataFromAthenaCSV();
+            itins = peItinerariesLoader.readPEItineraries("pe-engines-taxes/src/main/resources/PEItineraries_from_athena_csv/PEItins_from_athena_generated_ouput.txt");
+        }
+        else{
+            //This is when you already have the itineraries generated from a system test such as ProviderAATest in priceeye-v2
+            itins = peItinerariesLoader.readPEItineraries("pe-engines-taxes/src/main/resources/itineraries.txt");
+        }
 
         /*
             First, stub the TaxServiceFeeQuery object and the other booleans as per the
@@ -77,8 +90,8 @@ public class PEEnginesTaxesExpApplication {
 
             String reqBody = taxEngineRequestBuilder.buildRequest(currentItin);
 
-            JsonObject jsonObject = new Gson().fromJson(reqBody, JsonObject.class);
-            int taxLegsCount = jsonObject.getAsJsonObject("itinerary")
+            JsonObject reqBodyAsJsonObject = new Gson().fromJson(reqBody, JsonObject.class);
+            int taxLegsCount = reqBodyAsJsonObject.getAsJsonObject("itinerary")
                     .getAsJsonArray("taxLegs")
                     .size();
 
@@ -97,9 +110,11 @@ public class PEEnginesTaxesExpApplication {
                 }
 
                 RootResponse convertedResponse = (RootResponse) convert(response.body(), RootResponse.class);
-                //System.out.println("Converted response for currentItin: " + convertedResponse);
+                System.out.println("Converted response for currentItin: " + convertedResponse);
                 System.out.println("Examining Taxes...");
+
                 examineTaxes(convertedResponse, currentItin, taxLegsCount);
+
                 System.out.println("\n");
                 System.out.println("Done with loopcount = " + ++loopCounter);
                 System.out.println("\n\n");
@@ -154,7 +169,15 @@ public class PEEnginesTaxesExpApplication {
                                    if ("Flat Tax".equals(percentOrFlatTag)) {
                                        flatOrPercentValuesMap
                                                .computeIfAbsent(FLAT_TAX, k -> new ArrayList<>())
-                                               .add(x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxAmount());
+                                               //Note: The tax amount should NOT be pulled from the X1TaxRecordDataPointsMap as the taxAmount might be in other currency.
+                                               // Example JP,TK,001,100000. the tax amount is 1000 but it's in JPY.
+                                               //.add(x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxAmount());
+                                               .add(currentChargeDetail.getResponseCharge());
+
+                                                //Added for debugging
+                                        System.out.println("Flat tax found: " + currentChargeDetail.getResponseCharge());
+
+
                                    } else if ("Percent Tax".equals(percentOrFlatTag)) {
                                        flatOrPercentValuesMap
                                                .computeIfAbsent(PERCENT_TAX, k -> new ArrayList<>())

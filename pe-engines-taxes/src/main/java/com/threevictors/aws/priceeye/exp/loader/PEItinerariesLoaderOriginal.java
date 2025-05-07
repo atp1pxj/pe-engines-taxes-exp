@@ -1,7 +1,7 @@
 package com.threevictors.aws.priceeye.exp.loader;
 
-import com.threevictors.aws.data.priceeye.PEItinerary;
 import com.threevictors.aws.data.aws.RawLeg;
+import com.threevictors.aws.data.priceeye.PEItinerary;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -14,7 +14,7 @@ import java.util.Map;
 /**
  * This class is responsible for loading and parsing PEItinerary objects from a file.
  */
-public class PEItinerariesLoader {
+public class PEItinerariesLoaderOriginal {
 
     private static PEItinerary parsePEItineraryLine(String line) {
         // Remove "PEItinerary(" from start and ")" from end
@@ -63,17 +63,11 @@ public class PEItinerariesLoader {
         itinerary.setInBrands(fieldMap.get("inBrands"));
 
         itinerary.setDuration(Integer.parseInt(fieldMap.get("duration")));
-
-        //itinerary.setTotalPrice(Double.parseDouble(fieldMap.get("totalPrice")));
-        itinerary.setTotalPrice(Double.parseDouble(fieldMap.get("totalPrice").replace("\"", "")));
-
-        itinerary.setTaxes(Double.parseDouble(fieldMap.get("taxes").replace("\"", "")));
-
-       // itinerary.setYqyr(Double.parseDouble(fieldMap.get("yqyr").replace("\"", "")));
-        itinerary.setYqyr(Double.parseDouble(String.valueOf(evalExpression(fieldMap.get("yqyr").replace("\"", "")))));
-
-        itinerary.setOutboundPrice(Double.parseDouble(fieldMap.get("outboundPrice").replace("\"", "")));
-        itinerary.setInboundPrice(Double.parseDouble(fieldMap.get("inboundPrice").replace("\"", "")));
+        itinerary.setTotalPrice(Double.parseDouble(fieldMap.get("totalPrice")));
+        itinerary.setTaxes(Double.parseDouble(fieldMap.get("taxes")));
+        itinerary.setYqyr(Double.parseDouble(fieldMap.get("yqyr")));
+        itinerary.setOutboundPrice(Double.parseDouble(fieldMap.get("outboundPrice")));
+        itinerary.setInboundPrice(Double.parseDouble(fieldMap.get("inboundPrice")));
         itinerary.setInOutPriceIncludesTax(Boolean.parseBoolean(fieldMap.get("inOutPriceIncludesTax")));
 
         itinerary.setRefundable(Boolean.parseBoolean(fieldMap.get("refundable")));
@@ -99,7 +93,6 @@ public class PEItinerariesLoader {
 
         return itinerary;
     }
-
 
     /**
      * Parses a string representation of a list of RawLeg objects into a List<RawLeg>.
@@ -145,25 +138,23 @@ public class PEItinerariesLoader {
 
         leg.setNumberOfStops(fieldMap.get("numberOfStops")== null ? 0 : Integer.parseInt(fieldMap.get("numberOfStops")));
         leg.setDurationInMinutes(Integer.parseInt(fieldMap.get("durationInMinutes")));
-        leg.setOriginAirportCode(fieldMap.get("originAirportCode").replace("\"", ""));
-        leg.setDestinationAirportCode(fieldMap.get("destinationAirportCode").replace("\"", ""));
+        leg.setOriginAirportCode(fieldMap.get("originAirportCode"));
+        leg.setDestinationAirportCode(fieldMap.get("destinationAirportCode"));
 
         //Note that departDate and arriveDate are in the format yyMMdd even though itinerary is in the format yyyyMMdd.
         // Otherwise, it would not result in some taxes on the response
-        leg.setDepartDate(Integer.parseInt(fieldMap.get("departDate").replace("\"", "").substring(2)));
-        leg.setDepartTime(Integer.parseInt(fieldMap.get("departTime").replace("\"", "")));
+        leg.setDepartDate(Integer.parseInt(fieldMap.get("departDate").substring(2)));
+        leg.setDepartTime(Integer.parseInt(fieldMap.get("departTime")));
 
-        leg.setArriveDate(Integer.parseInt(fieldMap.get("arriveDate").replace("\"", "").substring(2)));
-        leg.setArriveTime(Integer.parseInt(fieldMap.get("arriveTime").replace("\"", "")));
+        leg.setArriveDate(Integer.parseInt(fieldMap.get("arriveDate").substring(2)));
+        leg.setArriveTime(Integer.parseInt(fieldMap.get("arriveTime")));
 
         leg.setDepartTerminal(fieldMap.get("departTerminal").equals("null") ? null : fieldMap.get("departTerminal"));
         leg.setArriveTerminal(fieldMap.get("arriveTerminal").equals("null") ? null : fieldMap.get("arriveTerminal"));
-        leg.setMarketingCarrier(fieldMap.get("marketingCarrier").replace("\"", ""));
-
-        leg.setOperatingCarrier(fieldMap.get("operatingCarrier") == null ? "" : fieldMap.get("operatingCarrier").replace("\"", ""));
-
-        leg.setFlightNumber(Integer.parseInt(fieldMap.get("flightNumber").replace("\"", "")));
-        leg.setBookingCode(fieldMap.get("bookingCode").replace("\"", ""));
+        leg.setMarketingCarrier(fieldMap.get("marketingCarrier"));
+        leg.setOperatingCarrier(fieldMap.get("operatingCarrier"));
+        leg.setFlightNumber(Integer.parseInt(fieldMap.get("flightNumber")));
+        leg.setBookingCode(fieldMap.get("bookingCode"));
         leg.setFareClass(fieldMap.get("fareClass"));
         leg.setCabin(fieldMap.get("cabin"));
         leg.setEquipmentCode(fieldMap.get("equipmentCode"));
@@ -176,15 +167,6 @@ public class PEItinerariesLoader {
         leg.setBrandId(fieldMap.get("brandId").equals("null") ? null : fieldMap.get("brandId"));
 
         return leg;
-    }
-
-    private static double evalExpression(String expression) {
-        String[] parts = expression.split("\\+");
-        double sum = 0;
-        for (String part : parts) {
-            sum += Double.parseDouble(part.trim());
-        }
-        return sum;
     }
 
     /**
