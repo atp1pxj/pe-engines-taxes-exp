@@ -2,6 +2,8 @@ package com.threevictors.aws.priceeye.exp.model;
 
 import lombok.Data;
 
+import java.math.BigDecimal;
+
 @Data
 public class ChargeDetail {
     public int legId;
@@ -11,11 +13,17 @@ public class ChargeDetail {
     public Object portionId;
     public int taxSequenceNumber;
     public String taxCarrier;
-    public double charge;
+    //public double charge;
+    public BigDecimal charge;
+
     public String chargeCurrency;
-    public double responseCharge;
+    //public double responseCharge;
+    public BigDecimal responseCharge;
+
     public String responseCurrency;
-    public double exchangeRate;
+    //public double exchangeRate;
+    public BigDecimal exchangeRate;
+
     public String chargeDescription;
     public boolean interlineable;
     public String taxAppliesToTag;

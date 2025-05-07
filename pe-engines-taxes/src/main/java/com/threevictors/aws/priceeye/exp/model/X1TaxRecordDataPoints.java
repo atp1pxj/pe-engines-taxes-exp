@@ -3,6 +3,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -13,6 +15,7 @@ public class X1TaxRecordDataPoints {
     private String percentOrFlatTag;
     private int seqNo;
     private String taxCarrier;
+    //Note: Don't convert this to BigDecimal. Keep it as double only.
     private Double taxAmount;
     private String taxAmountCurrency;
     private Double taxPercent;
