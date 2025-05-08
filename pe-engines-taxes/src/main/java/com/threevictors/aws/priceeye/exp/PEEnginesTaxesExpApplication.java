@@ -7,6 +7,7 @@ import com.google.gson.GsonBuilder;
 
 import com.google.gson.JsonObject;
 import com.threevictors.aws.data.priceeye.PEItinerary;
+import com.threevictors.aws.priceeye.exp.dao.MetadataReader;
 import com.threevictors.aws.priceeye.exp.loader.PEItinerariesLoader;
 import com.threevictors.aws.priceeye.exp.loader.PEItinsFromCSVLoader;
 import com.threevictors.aws.priceeye.exp.loader.X1TaxRecordDataPointsLoader;
@@ -33,6 +34,8 @@ import java.util.*;
 //import java.time.LocalDateRange;
 import java.util.Arrays;
 import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicReference;
+
 import net.atpco.ash.location.vo.*;
 import net.atpco.service.fee.client.request.TaxServiceFeeLeg;
 import org.apache.http.client.utils.URIBuilder;
@@ -51,6 +54,8 @@ public class PEEnginesTaxesExpApplication {
     protected HttpClient communicator;
 
     private static Map<String, X1TaxRecordDataPoints> x1TaxRecordDataPointsMap;
+    private static Map<String, String> airportCountryCodeMap;
+
     private static final String FLAT_TAX = "Flat Tax";
     private static final String PERCENT_TAX = "Percent Tax";
 
@@ -62,6 +67,11 @@ public class PEEnginesTaxesExpApplication {
 
         X1TaxRecordDataPointsLoader x1TaxRecordDataPointsLoader = new X1TaxRecordDataPointsLoader();
         x1TaxRecordDataPointsMap = x1TaxRecordDataPointsLoader.loadTaxRecordDataPoints("pe-engines-taxes/src/main/resources/xldatapoints_all_taxrecs_from_redis_all.txt");
+
+        //Load the airport country code map
+        MetadataReader metadataReader = new MetadataReader();
+        airportCountryCodeMap = metadataReader.getAirportCountryMapUSDomesticOnly();
+
 
         PEItinerariesLoader peItinerariesLoader = new PEItinerariesLoader();
 
@@ -208,7 +218,7 @@ public class PEEnginesTaxesExpApplication {
 
 
                     //Check flatOrPercentValuesMap for flat tax and percent tax
-                    if(flatOrPercentValuesMap != null && !flatOrPercentValuesMap.isEmpty()){
+                    if(flatOrPercentValuesMap != null && !flatOrPercentValuesMap.isEmpty()) {
                         List<BigDecimal> flatTaxList = flatOrPercentValuesMap.get(FLAT_TAX);
                         //loop through the flat tax list and add the values
                         //double totalFlatTaxAmount = flatTaxList.stream().mapToDouble(Double::doubleValue).sum();
@@ -224,15 +234,43 @@ public class PEEnginesTaxesExpApplication {
                         BigDecimal itinTpDeductedWithFlatTaxes = itinTpDeductedWithTaxes;
                         System.out.println("itinTpDeductedWithFlatTaxes: " + itinTpDeductedWithFlatTaxes);
 
-                        //TODO: Need to find out how to find out departure leg as a US airport
+                        /*//TODO: Need to find out how to find out departure leg as a US airport
                         //subtract PFC
                         System.out.println("taxLegsCount: " + taxLegsCount);
                         //PFC = 4.50 per leg. Cap it at 18.00
                         BigDecimal pfcTaxes = BigDecimal.valueOf(Math.min(taxLegsCount * 4.50, 18.00)).setScale(2, BigDecimal.ROUND_HALF_UP);
+                        System.out.println("pfcTaxes: " + pfcTaxes);*/
+
+                        //TODO: Need to find out how to find out departure leg as a US airport
+                        //subtract PFC
+                        System.out.println("taxLegsCount: " + taxLegsCount);
+                        //PFC = 4.50 per leg. Cap it at 18.00
+                        //Loop through all the outbound legs and check if the origin airport is in the US
+                        //If yes, then add the PFC taxes
+                        AtomicReference<BigDecimal> pfcTaxes = new AtomicReference<>(BigDecimal.ZERO);
+
+                        currentItin.getOutboundLegs().forEach(leg -> {
+                            if (airportCountryCodeMap.containsKey(leg.getOriginAirportCode())) {
+                                pfcTaxes.set(pfcTaxes.get().add(BigDecimal.valueOf(4.50)));
+                            }
+                        });
+
+                        currentItin.getInboundLegs().forEach(leg -> {
+                            if (airportCountryCodeMap.containsKey(leg.getOriginAirportCode())) {
+                                pfcTaxes.set(pfcTaxes.get().add(BigDecimal.valueOf(4.50)));
+                            }
+                        });
+
+
+                        //BigDecimal pfcTaxes = BigDecimal.valueOf(Math.min(taxLegsCount * 4.50, 18.00)).setScale(2, BigDecimal.ROUND_HALF_UP);
+                        //BigDecimal pfcTaxes = BigDecimal.valueOf(Math.min(pfcTaxesTotal, 18.00)).setScale(2, BigDecimal.ROUND_HALF_UP);
+                        //BigDecimal pfcTaxes = pfcTaxesTotal.setScale(2, BigDecimal.ROUND_HALF_UP);
                         System.out.println("pfcTaxes: " + pfcTaxes);
 
                         //double itinTpDeductedWithFlatTaxesAndPFC = Math.round((itinTpDeductedWithFlatTaxes - pfcTaxes) * 100.0) / 100.0;
-                        BigDecimal itinTpDeductedWithFlatTaxesAndPFC = itinTpDeductedWithFlatTaxes.subtract(pfcTaxes).setScale(2, BigDecimal.ROUND_HALF_UP);
+                        //BigDecimal itinTpDeductedWithFlatTaxesAndPFC = itinTpDeductedWithFlatTaxes.subtract(pfcTaxes).setScale(2, BigDecimal.ROUND_HALF_UP);
+
+                        BigDecimal itinTpDeductedWithFlatTaxesAndPFC = itinTpDeductedWithFlatTaxes.subtract(pfcTaxes.get()).setScale(2, BigDecimal.ROUND_HALF_UP);
 
                         System.out.println("itinTpDeductedWithFlatTaxesAndPFC: " + itinTpDeductedWithFlatTaxesAndPFC);
 
