@@ -165,7 +165,6 @@ public class PEEnginesTaxesExpApplication {
                     //Get the taxes
                     ArrayList<Taxes> taxes = executionResponse.getTaxes();
                     //Map containing the flat tax and percent tax values respectively.
-                    //Map<String, List<Double>> flatOrPercentValuesMap = new HashMap<>();
                     Map<String, List<BigDecimal>> flatOrPercentValuesMap = new HashMap<>();
 
                     //for each tax in taxes get the chargeDetails
@@ -202,7 +201,9 @@ public class PEEnginesTaxesExpApplication {
                                                .add(BigDecimal.valueOf(x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxPercent()));
 
                                        System.out.println("Percent tax for MapKey: " + mapKeyLookup);
-                                       System.out.println("Percent tax found on response: " + currentChargeDetail.getCharge().setScale(2, BigDecimal.ROUND_HALF_UP) + " %");
+                                       System.out.println("Percent tax AMOUNT found on response: " + currentChargeDetail.getCharge().setScale(2, BigDecimal.ROUND_HALF_UP));
+                                       System.out.println("Percent tax CHARGE DESCRIPTION on response: " + currentChargeDetail.getChargeDescription());
+
                                        System.out.println("Percent tax found on map: " + BigDecimal.valueOf(x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxPercent()) + " %");
 
 
@@ -221,34 +222,22 @@ public class PEEnginesTaxesExpApplication {
                     if(flatOrPercentValuesMap != null && !flatOrPercentValuesMap.isEmpty()) {
                         List<BigDecimal> flatTaxList = flatOrPercentValuesMap.get(FLAT_TAX);
                         //loop through the flat tax list and add the values
-                        //double totalFlatTaxAmount = flatTaxList.stream().mapToDouble(Double::doubleValue).sum();
                         BigDecimal totalFlatTaxAmount = flatTaxList.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
-
                         System.out.println("totalFlatTaxAmount: " + totalFlatTaxAmount);
 
                         //subtract total flatTaxAmopunt
-                        //itinTpDeductedWithTaxes -= totalFlatTaxAmount;
                         itinTpDeductedWithTaxes = itinTpDeductedWithTaxes.subtract(totalFlatTaxAmount);
 
-                        //double itinTpDeductedWithFlatTaxes = itinTpDeductedWithTaxes;
                         BigDecimal itinTpDeductedWithFlatTaxes = itinTpDeductedWithTaxes;
                         System.out.println("itinTpDeductedWithFlatTaxes: " + itinTpDeductedWithFlatTaxes);
+                        System.out.println("Total taxLegsCount: " + taxLegsCount);
 
-                        /*//TODO: Need to find out how to find out departure leg as a US airport
-                        //subtract PFC
-                        System.out.println("taxLegsCount: " + taxLegsCount);
-                        //PFC = 4.50 per leg. Cap it at 18.00
-                        BigDecimal pfcTaxes = BigDecimal.valueOf(Math.min(taxLegsCount * 4.50, 18.00)).setScale(2, BigDecimal.ROUND_HALF_UP);
-                        System.out.println("pfcTaxes: " + pfcTaxes);*/
-
-                        //TODO: Need to find out how to find out departure leg as a US airport
-                        //subtract PFC
-                        System.out.println("taxLegsCount: " + taxLegsCount);
+                        //PFC taxes
                         //PFC = 4.50 per leg. Cap it at 18.00
                         //Loop through all the outbound legs and check if the origin airport is in the US
-                        //If yes, then add the PFC taxes
+                        //If yes, then add the PFC taxes. Same for inbound legs.
                         AtomicReference<BigDecimal> pfcTaxes = new AtomicReference<>(BigDecimal.ZERO);
-
+                        //US, CA, MX origin airport codes
                         currentItin.getOutboundLegs().forEach(leg -> {
                             if (airportCountryCodeMap.containsKey(leg.getOriginAirportCode())) {
                                 pfcTaxes.set(pfcTaxes.get().add(BigDecimal.valueOf(4.50)));
