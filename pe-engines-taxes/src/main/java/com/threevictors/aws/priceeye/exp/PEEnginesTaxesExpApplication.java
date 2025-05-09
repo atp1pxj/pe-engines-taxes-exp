@@ -114,9 +114,10 @@ public class PEEnginesTaxesExpApplication {
                 System.out.println("\n");
                 System.out.println("Response code: " + response.statusCode());
                 //System.out.println("Response body: " + response.body());
-                //Wait 2 seconds before the next call
+                //Wait 500 milliseconds before the next call
                 try {
-                    Thread.sleep(2000);
+                    //Thread.sleep(2000);
+                    Thread.sleep(500);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
