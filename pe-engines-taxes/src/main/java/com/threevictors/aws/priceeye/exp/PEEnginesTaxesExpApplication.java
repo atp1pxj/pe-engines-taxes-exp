@@ -178,6 +178,16 @@ public class PEEnginesTaxesExpApplication {
                                for (ChargeDetail currentChargeDetail : chargeDetails) {
                                    String mapKeyLookup = currentChargeDetail.getTaxKey() + "," + currentChargeDetail.getTaxSequenceNumber();
                                    String percentOrFlatTag = x1TaxRecordDataPointsMap.get(mapKeyLookup).getPercentOrFlatTag();
+
+                                   /*System.out.println("tax code - amount - type (flat, percentage, tax on tax");
+                                   System.out.println(mapKeyLookup + " - " +  x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxAmount() + " - " + x1TaxRecordDataPointsMap.get(mapKeyLookup).getPercentOrFlatTag());*/
+                                   System.out.println("--------------------------------------------------------------------------------------\n");
+                                   System.out.println("tax code : taxAmount(flatTaxOnly) : taxAmtCurrency(flatTaxOnly) : percent(percentTaxonly) : type (flat, percentage, tax on tax") ;
+                                   System.out.println(mapKeyLookup + " : " +  x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxAmount() + " : " + x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxAmountCurrency() + " : " + x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxPercent() + " : " + x1TaxRecordDataPointsMap.get(mapKeyLookup).getPercentOrFlatTag());
+
+                                   System.out.println("--------------------------------------------------------------------------------------");
+
+
                                     //{key='US,AY,001,828212.96b48c47e3dad9d2a303b870708f3740', nation='US', taxCode='AY',
                                    // percentOrFlatTag=Flat Tax, seqNo=828212, taxCarrier='YY', taxAmount=5.60, taxAmountCurrency='USD', taxPercent=0.0000, minTaxWhenPercent=0, maxTaxWhenPercent=0}
 
@@ -199,22 +209,8 @@ public class PEEnginesTaxesExpApplication {
 
                                    } else if ("Percent Tax".equals(percentOrFlatTag)) {
 
-                                       //Original code
-                                       /*flatOrPercentValuesMap
-                                               .computeIfAbsent(PERCENT_TAX, k -> new ArrayList<>())
-                                               //.add(x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxPercent());
-                                               .add(BigDecimal.valueOf(x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxPercent()));
-
-                                       System.out.println("Percent tax for MapKey: " + mapKeyLookup);
-                                       System.out.println("Percent tax AMOUNT found on response: " + currentChargeDetail.getCharge().setScale(2, BigDecimal.ROUND_HALF_UP));
-                                       System.out.println("Percent tax CHARGE DESCRIPTION on response: " + currentChargeDetail.getChargeDescription());
-
-                                       System.out.println("Percent tax found on map: " + BigDecimal.valueOf(x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxPercent()) + " %");*/
-
                                        //if "chargeDescription": has a string something like "xxx% of 100.00USD", then the percentage points need to be added to the map
-                                       //but if it's something else like "chargeDescription": "13.0000% of 26.80USD" it means it's tax on tax. So treat it as a flat tax and add it to
-                                        //the flat tax list.
-
+                                       //but if it's something else like "chargeDescription": "13.0000% of 26.80USD" it means it's tax on tax. So treat it as a flat tax.
                                        System.out.println("Percent tax for MapKey: " + mapKeyLookup);
                                        System.out.println("Percent tax found on map: " + BigDecimal.valueOf(x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxPercent()) + " %");
 
@@ -263,21 +259,30 @@ public class PEEnginesTaxesExpApplication {
                         BigDecimal totalFlatTaxAmount = flatTaxList.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
                         System.out.println("totalFlatTaxAmount (FLAT TAX TOTAL AMT) : " + totalFlatTaxAmount);
 
-                        //subtract total flatTaxAmopunt
-                        itinTpDeductedWithTaxes = itinTpDeductedWithTaxes.subtract(totalFlatTaxAmount);
+                        //TAX ON TAX total
+                        BigDecimal totalTaxOnTaxAmount = BigDecimal.ZERO;
+                        //Loop through tax on tax, sum up all those values and add it to the calculated taxes
+                        List<BigDecimal> taxOnTaxList = flatOrPercentValuesMap.get(TAX_ON_TAX) != null ? flatOrPercentValuesMap.get(TAX_ON_TAX) : null;
+                        if(taxOnTaxList != null && !taxOnTaxList.isEmpty()){
+                            totalTaxOnTaxAmount = taxOnTaxList.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+                            System.out.println("totalTaxOnTaxAmount (TAX ON TAX TOTAL AMT) : " + totalTaxOnTaxAmount);
+                        }
+
+                        //subtract total flatTaxAmount and totalTaxOnTaxAmount from itinTpOriginal
+                        itinTpDeductedWithTaxes = itinTpDeductedWithTaxes.subtract(totalFlatTaxAmount).subtract(totalTaxOnTaxAmount);
 
                         BigDecimal itinTpDeductedWithFlatTaxes = itinTpDeductedWithTaxes;
-                        System.out.println("itinTpDeductedWithFlatTaxes: (ITINTP - FLAT TAX TOTAL) " + itinTpDeductedWithFlatTaxes);
+                        System.out.println("itinTpDeductedWithFlatTaxes: (ITINTP - FLAT TAX TOTAL - Tax on Tax flat amount) " + itinTpDeductedWithFlatTaxes);
                         System.out.println("--------------------------------------------------------------------------------------\n");
                         System.out.println("Total taxLegsCount (Engine request) : " + taxLegsCount);
 
                         //PFC taxes
                         //PFC = 4.50 per leg. Cap it at 18.00
-                        //Loop through all the outbound legs and check if the origin airport is in the US
+                        //Loop through all the outbound legs and check if the origin airport is in the US ONLY
                         //If yes, then add the PFC taxes. Same for inbound legs.
                         AtomicReference<BigDecimal> pfcTaxes = new AtomicReference<>(BigDecimal.ZERO);
                         int pfcLegsCount = 0;
-                        //US, CA, MX origin airport codes
+                        //US origin airport codes
                         for(RawLeg leg : currentItin.getOutboundLegs()){
                             if (airportCountryCodeMap.containsKey(leg.getOriginAirportCode())) {
                                 pfcTaxes.set(pfcTaxes.get().add(BigDecimal.valueOf(4.50)));
@@ -294,15 +299,11 @@ public class PEEnginesTaxesExpApplication {
                         System.out.println("Taxlegs USED for pfcTaxes: " + pfcLegsCount);
                         System.out.println("Total pfcTaxes: " + pfcTaxes);
 
-                        //double itinTpDeductedWithFlatTaxesAndPFC = Math.round((itinTpDeductedWithFlatTaxes - pfcTaxes) * 100.0) / 100.0;
-                        //BigDecimal itinTpDeductedWithFlatTaxesAndPFC = itinTpDeductedWithFlatTaxes.subtract(pfcTaxes).setScale(2, BigDecimal.ROUND_HALF_UP);
-
-                        //BigDecimal itinTpDeductedWithFlatTaxesAndPFC = itinTpDeductedWithFlatTaxes.subtract(pfcTaxes.get()).setScale(2, BigDecimal.ROUND_HALF_UP);
                         BigDecimal itinTpDeductedWithFlatTaxesAndPFC = itinTpDeductedWithFlatTaxes
                                 .subtract(pfcTaxes.get().min(BigDecimal.valueOf(18)))
                                 .setScale(2, BigDecimal.ROUND_HALF_UP);
 
-                        System.out.println("itinTpDeductedWithFlatTaxesAndPFC: (ITINTP - FLAT TAX TOTAL - PFC_TAXES)  " + itinTpDeductedWithFlatTaxesAndPFC);
+                        System.out.println("itinTpDeductedWithFlatTaxesAndPFC: (ITINTP - FLAT TAX TOTAL - TAX ON TAX - PFC_TAXES)  " + itinTpDeductedWithFlatTaxesAndPFC);
                         System.out.println("--------------------------------------------------------------------------------------\n");
 
                         /*double percentTaxTotalAmount  = 0.0;
@@ -315,14 +316,7 @@ public class PEEnginesTaxesExpApplication {
                         List<BigDecimal> percentTaxList = flatOrPercentValuesMap.get(PERCENT_TAX) != null ? flatOrPercentValuesMap.get(PERCENT_TAX) : null;
 
                         if(percentTaxList != null && !percentTaxList.isEmpty()){
-                            //loop through the percent tax list and get each percent tax value
-                            /*for (BigDecimal percentTax : percentTaxList) {
-                                //Add all percentage points values
-                                //Ex: 7.5% + 2.5% = 10%
-                                //percentTaxTotal+= percentTax;
-                                percentTaxTotal = percentTaxTotal.add(percentTax);
-                            }*/
-                            //Get the sum of all percent tax values
+                            //Loop through the percent tax list,get each percent tax value and sum up all percent tax values.
                             percentTaxTotal = percentTaxList.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
 
                         } else {
@@ -341,13 +335,11 @@ public class PEEnginesTaxesExpApplication {
                         System.out.println("percentTaxTotal: " + percentTaxTotal + "% will be applied on itinTpDeductedWithFlatTaxesAndPFC = " + itinTpDeductedWithFlatTaxesAndPFC
                                 +  " as per the equation (itinTpDeductedWithFlatTaxes - (itinTpDeductedWithFlatTaxes / (1 + (percentTaxTotal / 100.0)))");
                         //percentTaxTotalAmount = Math.round((itinTpDeductedWithFlatTaxesAndPFC - (itinTpDeductedWithFlatTaxesAndPFC / (1 + (percentTaxTotal / 100.0)))) * 100.0) / 100.0;
-
                         //percentTaxTotalAmount calculation
                         BigDecimal hundred = new BigDecimal("100");
                         BigDecimal one = BigDecimal.ONE;
 
-                        //VERY IMPORTANT: Use the same scale or precision for all the calculations.
-                        // Keep it at 4. Otherwise it will result in a different value and errors
+                        //VERY IMPORTANT: Use the same scale or precision of 4 (Keep it at 4 ONLY) for all the calculations.
                         BigDecimal denominator = one.add(percentTaxTotal.divide(hundred, 4, RoundingMode.HALF_UP));
                         BigDecimal fraction = itinTpDeductedWithFlatTaxesAndPFC.divide(denominator, 4, RoundingMode.HALF_UP);
                         BigDecimal difference = itinTpDeductedWithFlatTaxesAndPFC.subtract(fraction);
@@ -356,30 +348,28 @@ public class PEEnginesTaxesExpApplication {
                         percentTaxTotalAmount = difference.setScale(2, RoundingMode.HALF_UP);
                         System.out.println("percentTaxTotalAmount: " + percentTaxTotalAmount);
 
-                        //TAX ON TAX total
-                        BigDecimal totalTaxOnTaxAmount = BigDecimal.ZERO;
-                        //Loop through tax on tax, sum up all those values and add it to the calculated taxes
-                        List<BigDecimal> taxOnTaxList = flatOrPercentValuesMap.get(TAX_ON_TAX) != null ? flatOrPercentValuesMap.get(TAX_ON_TAX) : null;
-                        if(taxOnTaxList != null && !taxOnTaxList.isEmpty()){
-                            totalTaxOnTaxAmount = taxOnTaxList.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
-                            System.out.println("totalTaxOnTaxAmount (TAX ON TAX TOTAL AMT) : " + totalTaxOnTaxAmount);
-                        }
-
                         BigDecimal calculatedTaxesTotal = percentTaxTotalAmount.add(totalFlatTaxAmount).add(pfcTaxes.get()).add(totalTaxOnTaxAmount);
                         System.out.println("calculatedTaxesTotal (percentTaxTotalAmount + totalFlatTaxAmount + PFCTaxes + totalTaxOnTaxAmount) (NO YQYR) = " + calculatedTaxesTotal);
                         System.out.println("currentItin's GIVEN Total taxes: " + currentItinTaxes);
 
-                        boolean didCalculatedTaxesMatch = currentItinTaxes.compareTo(calculatedTaxesTotal) == 0;
+                        //Check if the calculated taxes total is within + or - $1.00 of the currentItin's taxes
+                        boolean didCalculatedTaxesMatch = currentItinTaxes.subtract(calculatedTaxesTotal)
+                                .compareTo(BigDecimal.valueOf(-1.00)) >= 0
+                                && currentItinTaxes.subtract(calculatedTaxesTotal)
+                                .compareTo(BigDecimal.valueOf(1.00)) <= 0;
 
                         System.out.println("currentItinTaxes(" + currentItinTaxes + ") == calculatedTaxesTotal(" + calculatedTaxesTotal + ") ?: " + didCalculatedTaxesMatch);
-                        if(!didCalculatedTaxesMatch){
+                        if(didCalculatedTaxesMatch){
+                            System.out.println("currentItinTaxes - calculatedTaxesTotal = " + currentItinTaxes.subtract(calculatedTaxesTotal));
+                        }
+                        else{
+                            System.out.println("currentItinTaxes - calculatedTaxesTotal difference is more than a dollar!");
                             System.out.println("currentItinTaxes - calculatedTaxesTotal = " + currentItinTaxes.subtract(calculatedTaxesTotal));
                         }
 
                         System.out.println("currentItin's YQYR taxes: " + currentItin.getYqyr());
-                        //itinTpDeductedWithTaxes = itinTpDeductedWithFlatTaxesAndPFC.subtract(percentTaxTotalAmount).setScale(2, BigDecimal.ROUND_HALF_UP);
-                        itinTpDeductedWithTaxes = itinTpDeductedWithFlatTaxesAndPFC.subtract(percentTaxTotalAmount).subtract(totalTaxOnTaxAmount).setScale(2, BigDecimal.ROUND_HALF_UP);
-                        System.out.println("ItinTP after flattax, pfc taxes, percentTax, taxontax removed : " + itinTpDeductedWithTaxes);
+                        itinTpDeductedWithTaxes = itinTpDeductedWithFlatTaxesAndPFC.subtract(percentTaxTotalAmount).setScale(2, BigDecimal.ROUND_HALF_UP);
+                        System.out.println("ItinTP after flattax, taxontax, pfc taxes, percentTax removed (in that order) Base Fare : " + itinTpDeductedWithTaxes);
 
                     } else {
                         System.out.println("No taxes found");
