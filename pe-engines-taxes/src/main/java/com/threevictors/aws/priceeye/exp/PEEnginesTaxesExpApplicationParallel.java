@@ -1,25 +1,18 @@
 package com.threevictors.aws.priceeye.exp;
 
-
-
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-
 import com.google.gson.JsonObject;
 import com.threevictors.aws.data.aws.RawLeg;
 import com.threevictors.aws.data.priceeye.PEItinerary;
 import com.threevictors.aws.priceeye.exp.dao.MetadataReader;
 import com.threevictors.aws.priceeye.exp.loader.PEItinerariesLoader;
 import com.threevictors.aws.priceeye.exp.loader.PEItinsFromCSVLoader;
+import com.threevictors.aws.priceeye.exp.loader.UniqueMktsPEItinsLoader;
 import com.threevictors.aws.priceeye.exp.loader.X1TaxRecordDataPointsLoader;
 import com.threevictors.aws.priceeye.exp.model.*;
 import com.threevictors.aws.priceeye.exp.velocity.builder.TaxEngineRequestBuilder;
-import net.atpco.ash.enums.LegIndicatorType;
-import net.atpco.engine.common.types.TransferType;
-import net.atpco.fare.domain.types.TripType;
-import net.atpco.service.fee.client.request.TaxServiceFeeQuery;
-import net.atpco.service.fee.client.request.TaxItinerary;
-import net.atpco.service.fee.client.request.FareInfo;
+import org.apache.http.client.utils.URIBuilder;
 
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
@@ -30,28 +23,17 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
-import java.util.*;
-
-//import java.time.LocalDateRange;
-import java.util.Arrays;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
-import net.atpco.ash.location.vo.*;
-import net.atpco.service.fee.client.request.TaxServiceFeeLeg;
-import org.apache.http.client.utils.URIBuilder;
-
-//Worked when I used snapshot
-//import net.atpco.service.fee.configuration.ServiceFeeEngineConfiguration;
-//import net.atpco.service.fee.configuration.ServiceFeeEngineProdConfiguration;
-//import net.atpco.service.fee.ServiceFeeEngine;
-
-
-public class PEEnginesTaxesExpApplication {
+public class PEEnginesTaxesExpApplicationParallel {
 
     protected static Gson gson = new GsonBuilder()
-        .setDateFormat("yyMMdd HH:mm")
-        .create();
+            .setDateFormat("yyMMdd HH:mm")
+            .create();
     protected HttpClient communicator;
 
     private static Map<String, X1TaxRecordDataPoints> x1TaxRecordDataPointsMap;
@@ -65,7 +47,7 @@ public class PEEnginesTaxesExpApplication {
 
     public static void main(String[] args) {
 
-        PEEnginesTaxesExpApplication currentApp = new PEEnginesTaxesExpApplication();
+        PEEnginesTaxesExpApplicationParallel currentApp = new PEEnginesTaxesExpApplicationParallel();
         TaxEngineRequestBuilder taxEngineRequestBuilder = new TaxEngineRequestBuilder();
 
         X1TaxRecordDataPointsLoader x1TaxRecordDataPointsLoader = new X1TaxRecordDataPointsLoader();
@@ -83,22 +65,23 @@ public class PEEnginesTaxesExpApplication {
         //Send this args to load itins from athena's CSV data
         if(args != null && args.length > 0 && args[0].equals("loadFromCSV")){
 
-            //TODO: Load the itineraries in parallel from the CSV file
-            PEItinsFromCSVLoader.populateItinDataFromAthenaCSV();
-            itins = peItinerariesLoader.readPEItineraries("pe-engines-taxes/src/main/resources/PEItineraries_from_athena_csv/PEItins_from_athena_generated_ouput.txt");
+            //Parallel load the itineraries from the CSV file
+            try{
+                UniqueMktsPEItinsLoader.populateItinDataFromAthenaCSVParallel();
+            }
+            catch (Exception e){
+                System.out.println("Error loading itineraries from CSV: " + e.getMessage());
+                e.printStackTrace();
+            }
+
+            //TODO: This logic needs to be updated to read the output file in parallel as per Graeme's instructions.
+            itins = peItinerariesLoader.readPEItineraries("pe-engines-taxes/src/main/resources/PEItineraries_from_athena_csv_parallel/generated_output_txts/PEItins_parallel_unique_output.txt");
+
         }
         else{
             //This is when you already have the itineraries generated from a system test such as ProviderAATest in priceeye-v2
             itins = peItinerariesLoader.readPEItineraries("pe-engines-taxes/src/main/resources/itineraries.txt");
         }
-
-        /*
-            First, stub the TaxServiceFeeQuery object and the other booleans as per the
-            required signature on how the TaxesController makes the call.
-            Stub a PEItinerary object with some values and transform it to TaxServiceFeeQuery query and make the call.
-            Print the calculated taxes.
-            Note that the PEItinerary does not have basefare, so start with a value of 100 as the totalFare.
-        */
 
         int loopCounter = 0;
         for (PEItinerary currentItin : itins) {
@@ -175,76 +158,76 @@ public class PEEnginesTaxesExpApplication {
                     for(Taxes tax : taxes){
 
                         ArrayList<ChargeDetail> chargeDetails = tax.getChargeDetails();
-                         if(chargeDetails != null && !chargeDetails.isEmpty()){
-                               for (ChargeDetail currentChargeDetail : chargeDetails) {
-                                   String mapKeyLookup = currentChargeDetail.getTaxKey() + "," + currentChargeDetail.getTaxSequenceNumber();
-                                   String percentOrFlatTag = x1TaxRecordDataPointsMap.get(mapKeyLookup).getPercentOrFlatTag();
+                        if(chargeDetails != null && !chargeDetails.isEmpty()){
+                            for (ChargeDetail currentChargeDetail : chargeDetails) {
+                                String mapKeyLookup = currentChargeDetail.getTaxKey() + "," + currentChargeDetail.getTaxSequenceNumber();
+                                String percentOrFlatTag = x1TaxRecordDataPointsMap.get(mapKeyLookup).getPercentOrFlatTag();
 
                                    /*System.out.println("tax code - amount - type (flat, percentage, tax on tax");
                                    System.out.println(mapKeyLookup + " - " +  x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxAmount() + " - " + x1TaxRecordDataPointsMap.get(mapKeyLookup).getPercentOrFlatTag());*/
-                                   System.out.println("--------------------------------------------------------------------------------------\n");
-                                   System.out.println("tax code : taxAmount(flatTaxOnly) : taxAmtCurrency(flatTaxOnly) : percent(percentTaxonly) : type (flat, percentage, tax on tax") ;
-                                   System.out.println(mapKeyLookup + " : " +  x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxAmount() + " : " + x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxAmountCurrency() + " : " + x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxPercent() + " : " + x1TaxRecordDataPointsMap.get(mapKeyLookup).getPercentOrFlatTag());
+                                System.out.println("--------------------------------------------------------------------------------------\n");
+                                System.out.println("tax code : taxAmount(flatTaxOnly) : taxAmtCurrency(flatTaxOnly) : percent(percentTaxonly) : type (flat, percentage, tax on tax") ;
+                                System.out.println(mapKeyLookup + " : " +  x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxAmount() + " : " + x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxAmountCurrency() + " : " + x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxPercent() + " : " + x1TaxRecordDataPointsMap.get(mapKeyLookup).getPercentOrFlatTag());
 
-                                   System.out.println("--------------------------------------------------------------------------------------");
-
-
-                                    //{key='US,AY,001,828212.96b48c47e3dad9d2a303b870708f3740', nation='US', taxCode='AY',
-                                   // percentOrFlatTag=Flat Tax, seqNo=828212, taxCarrier='YY', taxAmount=5.60, taxAmountCurrency='USD', taxPercent=0.0000, minTaxWhenPercent=0, maxTaxWhenPercent=0}
-
-                                   //{key='IN,K3,008,62537.0499185ceda910eb0399c6bc91b5eaea', nation='IN', taxCode='K3',
-                                   // percentOrFlatTag=Percent Tax, seqNo=62537, taxCarrier='QF', taxAmount=null, taxAmountCurrency='null', taxPercent=0.0000, minTaxWhenPercent=0, maxTaxWhenPercent=0}
-
-                                   //if it's flat Tax, select taxAmount and add it to the list, but if it's percent tax, select taxPercent and add it to the list
-                                   if ("Flat Tax".equals(percentOrFlatTag)) {
-                                       flatOrPercentValuesMap
-                                               .computeIfAbsent(FLAT_TAX, k -> new ArrayList<>())
-                                               //Note: The tax amount should NOT be pulled from the X1TaxRecordDataPointsMap as the taxAmount might be in other currency.
-                                               // Example JP,TK,001,100000. the tax amount is 1000 but it's in JPY.
-                                               //.add(x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxAmount());
-                                               .add(currentChargeDetail.getResponseCharge().setScale(2, BigDecimal.ROUND_HALF_UP));
-
-                                                //Added for debugging
-                                        System.out.println("Flat tax found: " + currentChargeDetail.getResponseCharge().setScale(2, BigDecimal.ROUND_HALF_UP));
+                                System.out.println("--------------------------------------------------------------------------------------");
 
 
-                                   } else if ("Percent Tax".equals(percentOrFlatTag)) {
+                                //{key='US,AY,001,828212.96b48c47e3dad9d2a303b870708f3740', nation='US', taxCode='AY',
+                                // percentOrFlatTag=Flat Tax, seqNo=828212, taxCarrier='YY', taxAmount=5.60, taxAmountCurrency='USD', taxPercent=0.0000, minTaxWhenPercent=0, maxTaxWhenPercent=0}
 
-                                       //if "chargeDescription": has a string something like "xxx% of 100.00USD", then the percentage points need to be added to the map
-                                       //but if it's something else like "chargeDescription": "13.0000% of 26.80USD" it means it's tax on tax. So treat it as a flat tax.
-                                       System.out.println("Percent tax for MapKey: " + mapKeyLookup);
-                                       System.out.println("Percent tax found on map: " + BigDecimal.valueOf(x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxPercent()) + " %");
+                                //{key='IN,K3,008,62537.0499185ceda910eb0399c6bc91b5eaea', nation='IN', taxCode='K3',
+                                // percentOrFlatTag=Percent Tax, seqNo=62537, taxCarrier='QF', taxAmount=null, taxAmountCurrency='null', taxPercent=0.0000, minTaxWhenPercent=0, maxTaxWhenPercent=0}
 
-                                       //Note:
-                                       //We know that it's already a percent tax, so we need to check if the chargeDescription has a string like "xxx% of 100.00USD" to
-                                       //determine if it's truly a percent tax on basefare or a tax on tax.
-                                       //Since we are setting the total fare to 100, a true percent tax will be something like 7.5% of 100.00USD
-                                       //But if it's a tax on tax, it will be something like 13.0000% of 26.80USD
-                                       if(currentChargeDetail.getChargeDescription() != null && currentChargeDetail.getChargeDescription().contains("% of 100.00USD")){
-                                             //Add the percentage points to the percent tax list
-                                             flatOrPercentValuesMap
-                                                    .computeIfAbsent(PERCENT_TAX, k -> new ArrayList<>())
-                                                    .add(BigDecimal.valueOf(x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxPercent()));
-                                             System.out.println("Seems a PERCENT tax on BASE FARE: " + currentChargeDetail.getChargeDescription());
-                                             System.out.println("Percent tax CHARGE DESCRIPTION on response: " + currentChargeDetail.getChargeDescription());
-                                             System.out.println("Percent tax AMOUNT found on response: " + currentChargeDetail.getCharge().setScale(2, BigDecimal.ROUND_HALF_UP));
+                                //if it's flat Tax, select taxAmount and add it to the list, but if it's percent tax, select taxPercent and add it to the list
+                                if ("Flat Tax".equals(percentOrFlatTag)) {
+                                    flatOrPercentValuesMap
+                                            .computeIfAbsent(FLAT_TAX, k -> new ArrayList<>())
+                                            //Note: The tax amount should NOT be pulled from the X1TaxRecordDataPointsMap as the taxAmount might be in other currency.
+                                            // Example JP,TK,001,100000. the tax amount is 1000 but it's in JPY.
+                                            //.add(x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxAmount());
+                                            .add(currentChargeDetail.getResponseCharge().setScale(2, BigDecimal.ROUND_HALF_UP));
+
+                                    //Added for debugging
+                                    System.out.println("Flat tax found: " + currentChargeDetail.getResponseCharge().setScale(2, BigDecimal.ROUND_HALF_UP));
 
 
-                                        } else {
+                                } else if ("Percent Tax".equals(percentOrFlatTag)) {
 
-                                                System.out.println("Seems a PERCENT TAX on OTHER TAX: " + currentChargeDetail.getChargeDescription());
-                                                System.out.println("Percent tax CHARGE DESCRIPTION on response: " + currentChargeDetail.getChargeDescription());
-                                                System.out.println("Percent tax AMOUNT found on response: " + currentChargeDetail.getResponseCharge().setScale(2, BigDecimal.ROUND_HALF_UP));
-                                                System.out.println("Adding to TAX ON TAX: " + currentChargeDetail.getResponseCharge().setScale(2, BigDecimal.ROUND_HALF_UP));
-                                             //Add it to the flat tax list
-                                             flatOrPercentValuesMap
-                                                    .computeIfAbsent(TAX_ON_TAX, k -> new ArrayList<>())
-                                                    .add(currentChargeDetail.getResponseCharge().setScale(2, BigDecimal.ROUND_HALF_UP));
-                                             System.out.println("Added as Tax on tax: " + currentChargeDetail.getResponseCharge().setScale(2, BigDecimal.ROUND_HALF_UP));
-                                       }
-                                   }
-                               }//end for on chargeDetails
-                         }
+                                    //if "chargeDescription": has a string something like "xxx% of 100.00USD", then the percentage points need to be added to the map
+                                    //but if it's something else like "chargeDescription": "13.0000% of 26.80USD" it means it's tax on tax. So treat it as a flat tax.
+                                    System.out.println("Percent tax for MapKey: " + mapKeyLookup);
+                                    System.out.println("Percent tax found on map: " + BigDecimal.valueOf(x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxPercent()) + " %");
+
+                                    //Note:
+                                    //We know that it's already a percent tax, so we need to check if the chargeDescription has a string like "xxx% of 100.00USD" to
+                                    //determine if it's truly a percent tax on basefare or a tax on tax.
+                                    //Since we are setting the total fare to 100, a true percent tax will be something like 7.5% of 100.00USD
+                                    //But if it's a tax on tax, it will be something like 13.0000% of 26.80USD
+                                    if(currentChargeDetail.getChargeDescription() != null && currentChargeDetail.getChargeDescription().contains("% of 100.00USD")){
+                                        //Add the percentage points to the percent tax list
+                                        flatOrPercentValuesMap
+                                                .computeIfAbsent(PERCENT_TAX, k -> new ArrayList<>())
+                                                .add(BigDecimal.valueOf(x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxPercent()));
+                                        System.out.println("Seems a PERCENT tax on BASE FARE: " + currentChargeDetail.getChargeDescription());
+                                        System.out.println("Percent tax CHARGE DESCRIPTION on response: " + currentChargeDetail.getChargeDescription());
+                                        System.out.println("Percent tax AMOUNT found on response: " + currentChargeDetail.getCharge().setScale(2, BigDecimal.ROUND_HALF_UP));
+
+
+                                    } else {
+
+                                        System.out.println("Seems a PERCENT TAX on OTHER TAX: " + currentChargeDetail.getChargeDescription());
+                                        System.out.println("Percent tax CHARGE DESCRIPTION on response: " + currentChargeDetail.getChargeDescription());
+                                        System.out.println("Percent tax AMOUNT found on response: " + currentChargeDetail.getResponseCharge().setScale(2, BigDecimal.ROUND_HALF_UP));
+                                        System.out.println("Adding to TAX ON TAX: " + currentChargeDetail.getResponseCharge().setScale(2, BigDecimal.ROUND_HALF_UP));
+                                        //Add it to the flat tax list
+                                        flatOrPercentValuesMap
+                                                .computeIfAbsent(TAX_ON_TAX, k -> new ArrayList<>())
+                                                .add(currentChargeDetail.getResponseCharge().setScale(2, BigDecimal.ROUND_HALF_UP));
+                                        System.out.println("Added as Tax on tax: " + currentChargeDetail.getResponseCharge().setScale(2, BigDecimal.ROUND_HALF_UP));
+                                    }
+                                }
+                            }//end for on chargeDetails
+                        }
 
                     }//End for on taxes
                     System.out.println("--------------------------------------------------------------------------------------");

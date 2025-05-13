@@ -6,10 +6,12 @@ import java.util.*;
 
 public class PEItinsFromCSVLoader {
 
+
+        //Note: Old sequential method.
         public static void populateItinDataFromAthenaCSV() {
 
-            String templateFilePath = "pe-engines-taxes/src/main/resources/PEItineraries_from_athena_csv/PEItin_template.txt";
             String csvFilePath = "pe-engines-taxes/src/main/resources/PEItineraries_from_athena_csv/peitn_template_data_input.csv";
+            String templateFilePath = "pe-engines-taxes/src/main/resources/PEItineraries_from_athena_csv/PEItin_template.txt";
             String outputFilePath = "pe-engines-taxes/src/main/resources/PEItineraries_from_athena_csv/PEItins_from_athena_generated_ouput.txt";
 
             try {
@@ -58,5 +60,14 @@ public class PEItinsFromCSVLoader {
             }
             return result;
         }
+
+
+
+
+
+
+
+
+
 
 }

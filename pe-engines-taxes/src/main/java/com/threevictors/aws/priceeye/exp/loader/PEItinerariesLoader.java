@@ -16,7 +16,7 @@ import java.util.Map;
  */
 public class PEItinerariesLoader {
 
-    private static PEItinerary parsePEItineraryLine(String line) {
+    public static PEItinerary parsePEItineraryLine(String line) {
         // Remove "PEItinerary(" from start and ")" from end
         String content = line.substring(12, line.length() - 1);
 
