@@ -72,7 +72,8 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
         //Note: This class relies on already loaded csv data in generated_output_txts/PEItins_parallel_unique_output.txt file by running UniqueMktsPEItinsLoader.java
 
         // *************** New way of calling Engines
-        File outputfileWithPEItinsString = new File("pe-engines-taxes/src/main/resources/PEItineraries_from_athena_csv_parallel/generated_output_txts/PEItins_parallel_unique_output.txt");
+        //File outputfileWithPEItinsString = new File("pe-engines-taxes/src/main/resources/PEItineraries_from_athena_csv_parallel/generated_output_txts/PEItins_parallel_unique_output.txt");
+        File outputfileWithPEItinsString = new File("pe-engines-taxes/src/main/resources/PEItineraries_from_athena_csv_parallel/generated_output_txts/PEItins_parallel_unique_output_deduped.txt");
 
         BlockingQueue<List<String>> queue = new LinkedBlockingQueue<>(QUEUE_CAPACITY);
         ExecutorService executor = Executors.newFixedThreadPool(THREAD_COUNT);
@@ -148,9 +149,9 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                 lineNumber++;
                  List<String> lineList = new ArrayList<>(Arrays.asList(line));
                  lineList.add(String.valueOf(lineNumber));
-                 if(lineNumber == 2) {
+                 //if(lineNumber == 2) {
                      queue.put(lineList);
-                 }
+                 //}
 
             }
             // Signal EOF to workers

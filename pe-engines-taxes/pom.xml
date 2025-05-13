@@ -520,32 +520,6 @@
 
 
 
-
-
-    <!--<profiles>
-        <profile>
-            <id>release</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        &lt;!&ndash;suppress MavenModelInspection &ndash;&gt;
-                        <groupId>org.apache.maven.plugins</groupId>
-                        &lt;!&ndash;suppress MavenModelInspection &ndash;&gt;
-                        <artifactId>maven-source-plugin</artifactId>
-                        <executions>
-                            <execution>
-                                <id>attach-sources</id>
-                                <goals>
-                                    <goal>jar-no-fork</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-    </profiles>-->
-
     <profiles>
         <profile>
             <id>atpco-3v-3V-ATP</id>

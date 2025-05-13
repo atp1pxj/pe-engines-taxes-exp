@@ -45,8 +45,6 @@ public class PEItinerariesLoader {
 
 
 
-
-
         PEItinerary itinerary = new PEItinerary();
 
         itinerary.setCurrency("USD");
