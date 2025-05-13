@@ -6,177 +6,129 @@ import com.threevictors.aws.data.aws.RawLeg;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * This class is responsible for loading and parsing PEItinerary objects from a file.
  */
 public class PEItinerariesLoader {
 
-    public static PEItinerary parsePEItineraryLine(String line) {
+    //itin_validatingcarrier,OBL_originairportcode,OBL_destinationairportcode,OBL_flightNumber,OBL_departdate,OBL_departtime,OBL_arrivedate,OBL_arrivetime,IBL_originairportcode,IBL_destinationairportcode,IBL_flightnumber,IBL_departdate,IBL_departtime,IBL_arrivedate,IBL_arrivetime,itin_cabin,itin_bookingcode,itin_totalamount,taxbreakdown,yq_val,yr_val,itin_true_tax_amount
+    //"UA","EWR","YYZ","3622","20251001","1500","20251001","1659","YYZ","EWR","8714","20251015","630","20251015","809","E","G","414.14","USD:AY 5.60|US 23.25|XA 3.71|XF 4.50|XY 7.00|YC 7.20|CA 12.20|SQ 26.80|ZP 10.40|RC 3.48","0.0","0.0","104.14"
+    public static PEItinerary parsePEItineraryLine(List<String> line) {
         // Remove "PEItinerary(" from start and ")" from end
-        String content = line.substring(12, line.length() - 1);
+        //String content = line.substring(12, line.length() - 1);
 
-        // Split by comma while respecting nested structures
-        Map<String, String> fieldMap = new HashMap<>();
-        int depth = 0;
-        StringBuilder currentKey = new StringBuilder();
-        StringBuilder currentValue = new StringBuilder();
-        boolean parsingKey = true;
+        String itinValidatingCarrier = line.get(0);
+        String oblOriginAirportCode = line.get(1);
+        String oblDestinationAirportCode = line.get(2);
+        String oblFlightNumber = line.get(3);
+        String oblDepartDate = line.get(4);
+        String oblDepartTime = line.get(5);
+        String oblArriveDate = line.get(6);
+        String oblArriveTime = line.get(7);
+        String iblOriginAirportCode = line.get(8);
+        String iblDestinationAirportCode = line.get(9);
+        String iblFlightNumber = line.get(10);
+        String iblDepartDate = line.get(11);
+        String iblDepartTime = line.get(12);
+        String iblArriveDate = line.get(13);
+        String iblArriveTime = line.get(14);
+        String itinCabin = line.get(15);
+        String itinBookingCode = line.get(16);
+        String itinTotalAmount = line.get(17);
+        String taxBreakdown = line.get(18);
+        String yqVal = line.get(19);
+        String yrVal = line.get(20);
+        String itinTrueTaxAmount = line.get(21);
+        String lineNumber = line.get(22);
 
-        for (char c : content.toCharArray()) {
-            if (c == '=' && depth == 0) {
-                parsingKey = false;
-                continue;
-            }
-            if (c == ',' && depth == 0) {
-                String key = currentKey.toString().trim();
-                String value = currentValue.toString().trim();
-                fieldMap.put(key, value);
-                currentKey = new StringBuilder();
-                currentValue = new StringBuilder();
-                parsingKey = true;
-                continue;
-            }
-            if (c == '[' || c == '(') depth++;
-            if (c == ']' || c == ')') depth--;
 
-            if (parsingKey) {
-                currentKey.append(c);
-            } else {
-                currentValue.append(c);
-            }
-        }
-        // Add the last field
-        if (currentKey.length() > 0) {
-            fieldMap.put(currentKey.toString().trim(), currentValue.toString().trim());
-        }
+
 
 
         PEItinerary itinerary = new PEItinerary();
 
-        itinerary.setCurrency(fieldMap.get("currency"));
-        itinerary.setOutBrands(fieldMap.get("outBrands"));
-        itinerary.setInBrands(fieldMap.get("inBrands"));
+        itinerary.setCurrency("USD");
+        itinerary.setOutBrands("");
+        itinerary.setInBrands("");
 
-        itinerary.setDuration(Integer.parseInt(fieldMap.get("duration")));
+        itinerary.setDuration(0);
 
         //itinerary.setTotalPrice(Double.parseDouble(fieldMap.get("totalPrice")));
-        itinerary.setTotalPrice(Double.parseDouble(fieldMap.get("totalPrice").replace("\"", "")));
+        itinerary.setTotalPrice(Double.parseDouble(itinTotalAmount));
 
-        itinerary.setTaxes(Double.parseDouble(fieldMap.get("taxes").replace("\"", "")));
+        itinerary.setTaxes(Double.parseDouble(itinTrueTaxAmount));
 
        // itinerary.setYqyr(Double.parseDouble(fieldMap.get("yqyr").replace("\"", "")));
-        itinerary.setYqyr(Double.parseDouble(String.valueOf(evalExpression(fieldMap.get("yqyr").replace("\"", "")))));
+        itinerary.setYqyr(Double.parseDouble(yqVal) + Double.parseDouble(yrVal));
 
-        itinerary.setOutboundPrice(Double.parseDouble(fieldMap.get("outboundPrice").replace("\"", "")));
-        itinerary.setInboundPrice(Double.parseDouble(fieldMap.get("inboundPrice").replace("\"", "")));
-        itinerary.setInOutPriceIncludesTax(Boolean.parseBoolean(fieldMap.get("inOutPriceIncludesTax")));
+        itinerary.setOutboundPrice(0);
+        itinerary.setInboundPrice(0);
+        itinerary.setInOutPriceIncludesTax(false);
 
-        itinerary.setRefundable(Boolean.parseBoolean(fieldMap.get("refundable")));
+        itinerary.setRefundable(false);
 
-        itinerary.setOutboundLegs(parseRawLegList(fieldMap.get("outboundLegs")));
-        itinerary.setInboundLegs(parseRawLegList(fieldMap.get("inboundLegs")));
+        List<RawLeg> obLegList = List.of(parseRawLeg(oblOriginAirportCode, oblDestinationAirportCode, Integer.parseInt(oblDepartDate), Integer.parseInt(oblDepartTime), Integer.parseInt(oblArriveDate), Integer.parseInt(oblArriveTime), Integer.parseInt(oblFlightNumber), itinValidatingCarrier, itinCabin, itinBookingCode));
+        itinerary.setOutboundLegs(obLegList);
 
-        itinerary.setObservationTimestamp(Long.parseLong(fieldMap.get("observationTimestamp")));
-        itinerary.setTotalPriceEnriched(Double.parseDouble(fieldMap.get("totalPriceEnriched")));
-        itinerary.setTaxesEnriched(Double.parseDouble(fieldMap.get("taxesEnriched")));
+        List<RawLeg>  ibLegList = List.of(parseRawLeg(iblOriginAirportCode, iblDestinationAirportCode, Integer.parseInt(iblDepartDate), Integer.parseInt(iblDepartTime), Integer.parseInt(iblArriveDate), Integer.parseInt(iblArriveTime), Integer.parseInt(iblFlightNumber), itinValidatingCarrier, itinCabin, itinBookingCode));
+        itinerary.setInboundLegs(ibLegList);
 
-        itinerary.setOutboundPriceEnriched(Double.parseDouble(fieldMap.get("outboundPriceEnriched")));
-        itinerary.setInboundPriceEnriched(Double.parseDouble(fieldMap.get("inboundPriceEnriched")));
+        itinerary.setObservationTimestamp(System.currentTimeMillis() / 1000L);
+        itinerary.setTotalPriceEnriched(100);
+        itinerary.setTaxesEnriched(0);
+
+        itinerary.setOutboundPriceEnriched(0);
+        itinerary.setInboundPriceEnriched(0);
         itinerary.setOutboundLegsEnriched(null);
         itinerary.setInboundLegsEnriched(null);
         itinerary.setOutBrandsEnriched(null);
         itinerary.setInBrandsEnriched(null);
 
-        itinerary.setFareConstructionText(fieldMap.get("fareConstructionText"));
-        itinerary.setTaxLadder(null);
-        itinerary.setChangeFee(Double.parseDouble(fieldMap.get("changeFee")));
-        itinerary.setChannel(fieldMap.get("channel"));
+        itinerary.setFareConstructionText("");
+        itinerary.setTaxLadder(List.of(""));
+        itinerary.setChangeFee(0);
+
+        //Temp stuffing of lineNumber in channel for debugging
+        itinerary.setChannel(lineNumber);
+
 
         return itinerary;
     }
 
 
     /**
-     * Parses a string representation of a list of RawLeg objects into a List<RawLeg>.
-     *
-     * @param rawLegsString the string representation of the list of RawLeg objects
-     * @return a List<RawLeg> containing the parsed RawLeg objects
+     * Parses a string representation of a list of RawLeg objects into a RawLeg type
+     * @param originAirportCode
+     * @param destinationAirportCode
+     * @param departDate
+     * @param departTime
+     * @param arriveDate
+     * @param arriveTime
+     * @param flightNumber
+     * @param marketingCarrier
+     * @param cabin
+     * @param bookingCode
+     * @return a RawLeg object
      */
-    private static List<RawLeg> parseRawLegList(String rawLegsString) {
-        if (rawLegsString == null || rawLegsString.equals("null")) {
-            return null;
-        }
+    private static RawLeg parseRawLeg(String originAirportCode, String destinationAirportCode, int departDate, int departTime, int arriveDate, int arriveTime, int flightNumber, String marketingCarrier, String cabin, String bookingCode) {
+        RawLeg rawLeg = new RawLeg();
+        rawLeg.setOriginAirportCode(originAirportCode);
+        rawLeg.setDestinationAirportCode(destinationAirportCode);
+        rawLeg.setDepartDate(departDate); // Example date in yyMMdd format
+        rawLeg.setDepartTime(departTime);   // Example time in HHmm format
+        rawLeg.setArriveDate(arriveDate);
+        rawLeg.setArriveTime(arriveTime);
+        rawLeg.setFlightNumber(flightNumber);
+        rawLeg.setMarketingCarrier(marketingCarrier);
+        rawLeg.setCabin(cabin);
+        rawLeg.setBookingCode(bookingCode);
 
-        List<RawLeg> legs = new ArrayList<>();
-        String[] rawLegs = rawLegsString.substring(1, rawLegsString.length() - 1).split("\\), RawLeg\\(");
-
-        for (String leg : rawLegs) {
-            if (!leg.trim().isEmpty()) {
-                legs.add(parseRawLeg(leg));
-            }
-        }
-
-        return legs;
+        return rawLeg;
     }
 
-    /**
-     * Parses a string representation of a RawLeg object into a RawLeg.
-     *
-     * @param legString the string representation of the RawLeg object
-     * @return a RawLeg object containing the parsed data
-     */
-    private static RawLeg parseRawLeg(String legString) {
-        Map<String, String> fieldMap = new HashMap<>();
-        String[] fields = legString.split(", ");
 
-        for (String field : fields) {
-            String[] parts = field.split("=");
-            if (parts.length == 2) {
-                fieldMap.put(parts[0], parts[1]);
-            }
-        }
-
-        RawLeg leg = new RawLeg();
-
-        leg.setNumberOfStops(fieldMap.get("numberOfStops")== null ? 0 : Integer.parseInt(fieldMap.get("numberOfStops")));
-        leg.setDurationInMinutes(Integer.parseInt(fieldMap.get("durationInMinutes")));
-        leg.setOriginAirportCode(fieldMap.get("originAirportCode").replace("\"", ""));
-        leg.setDestinationAirportCode(fieldMap.get("destinationAirportCode").replace("\"", ""));
-
-        //Note that departDate and arriveDate are in the format yyMMdd even though itinerary is in the format yyyyMMdd.
-        // Otherwise, it would not result in some taxes on the response
-        leg.setDepartDate(Integer.parseInt(fieldMap.get("departDate").replace("\"", "").substring(2)));
-        leg.setDepartTime(Integer.parseInt(fieldMap.get("departTime").replace("\"", "")));
-
-        leg.setArriveDate(Integer.parseInt(fieldMap.get("arriveDate").replace("\"", "").substring(2)));
-        leg.setArriveTime(Integer.parseInt(fieldMap.get("arriveTime").replace("\"", "")));
-
-        leg.setDepartTerminal(fieldMap.get("departTerminal").equals("null") ? null : fieldMap.get("departTerminal"));
-        leg.setArriveTerminal(fieldMap.get("arriveTerminal").equals("null") ? null : fieldMap.get("arriveTerminal"));
-        leg.setMarketingCarrier(fieldMap.get("marketingCarrier").replace("\"", ""));
-
-        leg.setOperatingCarrier(fieldMap.get("operatingCarrier") == null ? "" : fieldMap.get("operatingCarrier").replace("\"", ""));
-
-        leg.setFlightNumber(Integer.parseInt(fieldMap.get("flightNumber").replace("\"", "")));
-        leg.setBookingCode(fieldMap.get("bookingCode").replace("\"", ""));
-        leg.setFareClass(fieldMap.get("fareClass"));
-        leg.setCabin(fieldMap.get("cabin"));
-        leg.setEquipmentCode(fieldMap.get("equipmentCode"));
-        leg.setNumberOfSeats(Integer.parseInt(fieldMap.get("numberOfSeats")));
-
-        leg.setIntermediateAirports(fieldMap.get("intermediateAirports") == null ? null : List.of(fieldMap.get("intermediateAirports")));
-
-        leg.setPcc(fieldMap.get("pcc").equals("null") ? null : fieldMap.get("pcc"));
-        leg.setAvailabilitySource(fieldMap.get("availabilitySource").equals("null") ? null : fieldMap.get("availabilitySource"));
-        leg.setBrandId(fieldMap.get("brandId").equals("null") ? null : fieldMap.get("brandId"));
-
-        return leg;
-    }
 
     private static double evalExpression(String expression) {
         String[] parts = expression.split("\\+");
@@ -200,7 +152,8 @@ public class PEItinerariesLoader {
             String line;
             while ((line = reader.readLine()) != null) {
                 if (line.trim().startsWith("PEItinerary(")) {
-                    PEItinerary itinerary = parsePEItineraryLine(line);
+                    //PEItinerary itinerary = parsePEItineraryLine(line);
+                    PEItinerary itinerary = parsePEItineraryLine(List.of(line));
                     itineraries.add(itinerary);
                 }
             }

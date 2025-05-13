@@ -67,7 +67,8 @@ public class PEEnginesTaxesExpApplicationParallel {
 
             //Parallel load the itineraries from the CSV file
             try{
-                UniqueMktsPEItinsLoader.populateItinDataFromAthenaCSVParallel();
+                //UniqueMktsPEItinsLoader.populateItinDataFromAthenaCSVParallel();
+                UniqueMktsPEItinsLoader.main(null);
             }
             catch (Exception e){
                 System.out.println("Error loading itineraries from CSV: " + e.getMessage());

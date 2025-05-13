@@ -3,6 +3,7 @@ package com.threevictors.aws.priceeye.exp;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
+import com.opencsv.CSVReader;
 import com.threevictors.aws.data.aws.RawLeg;
 import com.threevictors.aws.data.priceeye.PEItinerary;
 import com.threevictors.aws.priceeye.exp.dao.MetadataReader;
@@ -29,7 +30,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.*;
 import java.io.BufferedReader;
 import java.io.FileReader;
-
+import com.opencsv.CSVReader;
 
 
 public class PEEnginesTaxesExpApplicationParallelAlternate {
@@ -48,7 +49,7 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
     private static final String TAX_ON_TAX = "tax on tax";
 
     //private static final int QUEUE_CAPACITY = 1000; // Tune as needed
-    private static final int QUEUE_CAPACITY = 24; // Tune as needed
+    private static final int QUEUE_CAPACITY = 2000; // Tune as needed
     private static final int THREAD_COUNT = Runtime.getRuntime().availableProcessors();
 
 
@@ -67,34 +68,13 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
         PEItinerariesLoader peItinerariesLoader = new PEItinerariesLoader();
         List<PEItinerary> itins = new ArrayList<>();
 
-        //NOTE: Check if the args is added or not before each run
-        //Send this args to load itins from athena's CSV data
-        if(args != null && args.length > 0 && args[0].equals("loadFromCSV")){
 
-            /*PEItinsFromCSVLoader.populateItinDataFromAthenaCSV();
-            itins = peItinerariesLoader.readPEItineraries("pe-engines-taxes/src/main/resources/PEItineraries_from_athena_csv/PEItins_from_athena_generated_ouput.txt");
-            */
-
-            //Paralell load the itineraries from the CSV file
-            try{
-                UniqueMktsPEItinsLoader.populateItinDataFromAthenaCSVParallel();
-            }
-            catch (Exception e){
-                System.out.println("Error loading itineraries from CSV: " + e.getMessage());
-                e.printStackTrace();
-            }
-
-            //itins = peItinerariesLoader.readPEItineraries("pe-engines-taxes/src/main/resources/PEItineraries_from_athena_csv_parallel/generated_output_txts/PEItins_parallel_unique_output.txt");
-        }
-        else{
-            //This is when you already have the itineraries generated from a system test such as ProviderAATest in priceeye-v2
-            itins = peItinerariesLoader.readPEItineraries("pe-engines-taxes/src/main/resources/itineraries.txt");
-        }
+        //Note: This class relies on already loaded csv data in generated_output_txts/PEItins_parallel_unique_output.txt file by running UniqueMktsPEItinsLoader.java
 
         // *************** New way of calling Engines
         File outputfileWithPEItinsString = new File("pe-engines-taxes/src/main/resources/PEItineraries_from_athena_csv_parallel/generated_output_txts/PEItins_parallel_unique_output.txt");
 
-        BlockingQueue<String> queue = new LinkedBlockingQueue<>(QUEUE_CAPACITY);
+        BlockingQueue<List<String>> queue = new LinkedBlockingQueue<>(QUEUE_CAPACITY);
         ExecutorService executor = Executors.newFixedThreadPool(THREAD_COUNT);
         CountDownLatch latch = new CountDownLatch(THREAD_COUNT);
 
@@ -104,8 +84,11 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
         for (int i = 0; i < THREAD_COUNT; i++) {
             executor.submit(() -> {
                 try {
-                    String line;
-                    while (!(line = queue.take()).equals("__EOF__")) {
+                    List<String> line = queue.take();
+                    do {
+                        if(line.get(0).equals("__EOF__")) {
+                            break;
+                        }
                         PEItinerary currentItin = PEItinerariesLoader.parsePEItineraryLine(line);
 
                         if (currentItin == null) {
@@ -132,8 +115,9 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                         } else {
                             System.err.println("Null response for itinerary: " + currentItin);
                         }
-                        Thread.sleep(500); // Throttle
-                    }
+                        Thread.sleep(10); // Throttle
+                        line = queue.take();
+                    } while(true); //End of while
                 } catch (Exception e) {
                     e.printStackTrace();
                 } finally {
@@ -142,19 +126,43 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
             });//end of executor.submit
         }//end of for loop on THREAD_COUNT
 
-        // Read lines and place onto queue
-        try (BufferedReader reader = new BufferedReader(new FileReader(outputfileWithPEItinsString))) {
+        // Read lines and place onto queue. This was when PEItins were read from a file.
+        /*try (BufferedReader reader = new BufferedReader(new FileReader(outputfileWithPEItinsString))) {
             String line;
+            int lineNumber = 0;
             while ((line = reader.readLine()) != null) {
-                queue.put(line);
+                lineNumber++;
+                queue.put(line+", "+lineNumber);
             }
             // Signal EOF to workers
             for (int i = 0; i < THREAD_COUNT; i++) {
                 queue.put("__EOF__");
             }
+        }*/
+
+        //Read the CSV directly and put it into the queue
+        try (CSVReader reader = new CSVReader(new FileReader(outputfileWithPEItinsString))) {
+            String line[];
+            int lineNumber = 0;
+            while ((line = reader.readNext()) != null) {
+                lineNumber++;
+                 List<String> lineList = new ArrayList<>(Arrays.asList(line));
+                 lineList.add(String.valueOf(lineNumber));
+                 if(lineNumber == 2) {
+                     queue.put(lineList);
+                 }
+
+            }
+            // Signal EOF to workers
+            for (int i = 0; i < THREAD_COUNT; i++) {
+                //queue.put("__EOF__");
+                queue.put(Collections.singletonList("__EOF__"));
+            }
         }
 
+        System.out.println("!!!!!!!!!!!!!! File is being read !!!!!!!!!!!!!!!!");
         latch.await();
+        System.out.println("***************** Latch is empty! *****************");
         executor.shutdown();
         System.out.println("✅ Processing complete.");
 
@@ -207,7 +215,14 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                                    System.out.println(mapKeyLookup + " - " +  x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxAmount() + " - " + x1TaxRecordDataPointsMap.get(mapKeyLookup).getPercentOrFlatTag());*/
                                 System.out.println("--------------------------------------------------------------------------------------\n");
                                 System.out.println("tax code : taxAmount(flatTaxOnly) : taxAmtCurrency(flatTaxOnly) : percent(percentTaxonly) : type (flat, percentage, tax on tax") ;
-                                System.out.println(mapKeyLookup + " : " +  x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxAmount() + " : " + x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxAmountCurrency() + " : " + x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxPercent() + " : " + x1TaxRecordDataPointsMap.get(mapKeyLookup).getPercentOrFlatTag());
+                                //System.out.println(mapKeyLookup + " : " +  x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxAmount() + " : " + x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxAmountCurrency() + " : " + x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxPercent() + " : " + x1TaxRecordDataPointsMap.get(mapKeyLookup).getPercentOrFlatTag());
+
+                                if(x1TaxRecordDataPointsMap.get(mapKeyLookup) != null) {
+                                    System.out.println(mapKeyLookup + " : " +  x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxAmount() + " : " + x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxAmountCurrency() + " : " + x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxPercent() + " : " + x1TaxRecordDataPointsMap.get(mapKeyLookup).getPercentOrFlatTag());
+                                }
+                                else {
+                                    System.out.println(">>>>>>>>>>>> No data found for mapKeyLookup: " + mapKeyLookup);
+                                }
 
                                 System.out.println("--------------------------------------------------------------------------------------");
 
@@ -382,7 +397,8 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                                 && currentItinTaxes.subtract(calculatedTaxesTotal)
                                 .compareTo(BigDecimal.valueOf(1.00)) <= 0;
 
-                        System.out.println("currentItinTaxes(" + currentItinTaxes + ") == calculatedTaxesTotal(" + calculatedTaxesTotal + ") ?: " + didCalculatedTaxesMatch);
+                        //Line number for debugging. Value set in channel for the time being.
+                        System.out.println("currentItinTaxes(" + currentItinTaxes + ") == calculatedTaxesTotal(" + calculatedTaxesTotal + ") ?: " + didCalculatedTaxesMatch + "LN: " + currentItin.getChannel());
                         if(didCalculatedTaxesMatch){
                             System.out.println("currentItinTaxes - calculatedTaxesTotal = " + currentItinTaxes.subtract(calculatedTaxesTotal));
                         }

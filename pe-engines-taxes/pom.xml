@@ -415,6 +415,12 @@
             <version>${version.mysql.connector}</version>
         </dependency>
 
+        <dependency>
+            <groupId>com.opencsv</groupId>
+            <artifactId>opencsv</artifactId>
+            <version>5.11</version>
+        </dependency>
+
     </dependencies>
 
 

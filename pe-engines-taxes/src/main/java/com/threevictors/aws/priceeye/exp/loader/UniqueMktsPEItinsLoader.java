@@ -11,8 +11,8 @@ public class UniqueMktsPEItinsLoader {
     private static final Set<String> seenKeys = ConcurrentHashMap.newKeySet();
     private static final List<String> outputLines = Collections.synchronizedList(new ArrayList<>());
 
-    //public static void main(String[] args) throws IOException, InterruptedException {
-    public static void populateItinDataFromAthenaCSVParallel() throws IOException {
+    public static void main(String[] args) throws IOException, InterruptedException {
+    //public static void populateItinDataFromAthenaCSVParallel() throws IOException {
 
         //All parts
         // /Users/pjannapureddy/All_sprints_2/3victors/2025_sprints/Sprint8_Apr14_Apr_25/1_Athena_query_results/large_input_file_and_split/split_output/
@@ -76,9 +76,9 @@ public class UniqueMktsPEItinsLoader {
                 if (key == null || !seenKeys.add(key)) {
                     continue; // skip duplicate key
                 }
-
-                String filled = fillTemplate(template, values, headerMap);
-                outputLines.add(filled);
+                //String filled = fillTemplate(template, values, headerMap);
+                //outputLines.add(filled);
+                outputLines.add(line);
             }
         }
     }
