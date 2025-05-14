@@ -52,7 +52,6 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
         taxEngineCommunicator = new TaxEngineCommunicator();
 
         X1TaxRecordDataPointsLoader x1TaxRecordDataPointsLoader = new X1TaxRecordDataPointsLoader();
-        //x1TaxRecordDataPointsMap = x1TaxRecordDataPointsLoader.loadTaxRecordDataPoints("pe-engines-taxes/src/main/resources/xldatapoints_all_taxrecs_from_redis_all.txt");
         x1TaxRecordDataPointsMap = Collections.unmodifiableMap(
                 x1TaxRecordDataPointsLoader.loadTaxRecordDataPoints("pe-engines-taxes/src/main/resources/xldatapoints_all_taxrecs_from_redis_all.txt")
         );
@@ -60,7 +59,6 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
         //Load the airport country code map
         MetadataReader metadataReader = new MetadataReader();
 
-        //airportCountryCodeMap = metadataReader.getAirportCountryMapUSDomesticOnly();
         airportCountryCodeMap = Collections.unmodifiableMap(
                 metadataReader.getAirportCountryMapUSDomesticOnly()
         );
@@ -314,6 +312,16 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
             log.error("Entry count mismatch: ItineraryTaxLadder (" + currentItinTaxLadderMap.size() + ") != Response TaxLadder (" + sortedTaxLadderFromResponse.size() + ") LN: " + currentItin.getChannel());
             log.error("Itinerary TaxLadder : " + currentItinTaxLadderMap + " LN: " + currentItin.getChannel());
             log.error("Response TaxLadder: " + sortedTaxLadderFromResponse + " LN: " + currentItin.getChannel());
+            // Log entries that are missing in the smaller map by collecting them in a list and log them at once
+            List<String> missingEntries = new ArrayList<>();
+            for (Map.Entry<String, String> entry : currentItinTaxLadderMap.entrySet()) {
+                if (!sortedTaxLadderFromResponse.containsKey(entry.getKey())) {
+                    missingEntries.add(entry.getKey() + "=" + entry.getValue());
+                }
+            }
+            if (!missingEntries.isEmpty()) {
+                log.error("Missing entries in Response TaxLadder: " + missingEntries + " LN: " + currentItin.getChannel());
+            }
             log.info("\n");
         } else {
             for (Map.Entry<String, String> entry : currentItinTaxLadderMap.entrySet()) {
