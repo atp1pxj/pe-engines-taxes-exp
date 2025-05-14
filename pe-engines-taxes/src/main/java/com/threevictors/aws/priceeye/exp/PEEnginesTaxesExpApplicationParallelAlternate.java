@@ -25,9 +25,6 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
 
     private final static Log log = LogFactory.getLog(PEEnginesTaxesExpApplicationParallelAlternate.class);
 
-
-
-
     private static final String FLAT_TAX = "Flat Tax";
     private static final String PERCENT_TAX = "Percent Tax";
     //Made up string to identify the tax on tax
@@ -64,6 +61,8 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
     }
 
     private void startWorkerThreads() {
+        // Start worker threads
+        log.info("Starting " + THREAD_COUNT + " worker threads.");
         for (int i = 0; i < THREAD_COUNT; i++) {
             executor.submit(() -> {
                 try {
@@ -109,7 +108,6 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                 lineList.add(String.valueOf(lineNumber));
 
                 PEItinerary itinerary = PEItinerariesLoader.parsePEItineraryLine(lineList);
-
                 queue.put( itinerary );
             }
 
@@ -144,7 +142,7 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
         currentApp.readSourceFile(source);
         currentApp.await();
 
-        System.out.println("✅ Processing complete.");
+        log.info("✅ Processing complete.");
 
     }//End of main method.
 
@@ -160,7 +158,6 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                 .setScale(2, BigDecimal.ROUND_HALF_UP);
 
         BigDecimal currentItinTaxes = BigDecimal.valueOf(currentItin.getTaxes()).setScale(2, BigDecimal.ROUND_HALF_UP);
-
 
         //Hold the original total price of the itinerary in this variable
         BigDecimal itinTpDeductedWithTaxes = BigDecimal.valueOf(currentItin.getTotalPrice())
@@ -184,7 +181,6 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                             for (ChargeDetail currentChargeDetail : chargeDetails) {
                                 String mapKeyLookup = currentChargeDetail.getTaxKey() + "," + currentChargeDetail.getTaxSequenceNumber();
 
-                                //String percentOrFlatTag = x1TaxRecordDataPointsMap.get(mapKeyLookup).getPercentOrFlatTag();
                                 String percentOrFlatTag = Optional.ofNullable(x1TaxRecordDataPointsMap.get(mapKeyLookup))
                                         .map(X1TaxRecordDataPoints::getPercentOrFlatTag)
                                         .orElse(null);
@@ -193,28 +189,20 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                                     log.error(">>>>>>>>>>>> No data found for mapKeyLookup: " + mapKeyLookup);
                                 }
 
-                                //{key='US,AY,001,828212.96b48c47e3dad9d2a303b870708f3740', nation='US', taxCode='AY',
-                                // percentOrFlatTag=Flat Tax, seqNo=828212, taxCarrier='YY', taxAmount=5.60, taxAmountCurrency='USD', taxPercent=0.0000, minTaxWhenPercent=0, maxTaxWhenPercent=0}
-
-                                //{key='IN,K3,008,62537.0499185ceda910eb0399c6bc91b5eaea', nation='IN', taxCode='K3',
-                                // percentOrFlatTag=Percent Tax, seqNo=62537, taxCarrier='QF', taxAmount=null, taxAmountCurrency='null', taxPercent=0.0000, minTaxWhenPercent=0, maxTaxWhenPercent=0}
-
                                 //if it's flat Tax, select taxAmount and add it to the list, but if it's percent tax, select taxPercent and add it to the list
                                 if ("Flat Tax".equals(percentOrFlatTag)) {
+                                    //Extract the flat tax amount from the response
                                     flatOrPercentValuesMap
                                             .computeIfAbsent(FLAT_TAX, k -> new ArrayList<>())
-                                            //Note: The tax amount should NOT be pulled from the X1TaxRecordDataPointsMap as the taxAmount might be in other currency.
-                                            // Example JP,TK,001,100000. the tax amount is 1000 but it's in JPY.
-                                            //.add(x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxAmount());
                                             .add(currentChargeDetail.getResponseCharge().setScale(2, BigDecimal.ROUND_HALF_UP));
 
                                 } else if ("Percent Tax".equals(percentOrFlatTag)) {
 
-                                    //Note:
-                                    //We know that it's already a percent tax, so we need to check if the chargeDescription has a string like "xxx% of 100.00USD" to
-                                    //determine if it's truly a percent tax on basefare or a tax on tax.
-                                    //Since we are setting the total fare to 100, a true percent tax will be something like 7.5% of 100.00USD
-                                    //But if it's a tax on tax, it will be something like 13.0000% of 26.80USD
+                                    /* Note:
+                                    We know that it's already a percent tax, so we need to check if the chargeDescription has a string like "xxx% of 100.00USD" to
+                                    determine if it's truly a percent tax on basefare or a tax on tax.
+                                    Since we are setting the total fare to 100, a true percent tax will be something like 7.5% of 100.00USD
+                                    But if it's a tax on tax, it will be something like 13.0000% of 26.80USD */
                                     if(currentChargeDetail.getChargeDescription() != null && currentChargeDetail.getChargeDescription().contains("% of 100.00USD")){
                                         //Add the percentage points to the percent tax list
                                         flatOrPercentValuesMap
@@ -222,7 +210,6 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                                                 .add(BigDecimal.valueOf(x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxPercent()));
 
                                     } else {
-
                                         //Add it to the flat tax list
                                         flatOrPercentValuesMap
                                                 .computeIfAbsent(TAX_ON_TAX, k -> new ArrayList<>())
@@ -231,17 +218,18 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                                 }
                             }//end for on chargeDetails
                         }
-
                     }//End for on taxes
 
                     //Check flatOrPercentValuesMap for flat tax and percent tax
                     if(flatOrPercentValuesMap != null && !flatOrPercentValuesMap.isEmpty()) {
                         List<BigDecimal> flatTaxList = flatOrPercentValuesMap.get(FLAT_TAX);
+
                         //loop through the flat tax list and add the values
                         BigDecimal totalFlatTaxAmount = flatTaxList.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
 
                         //TAX ON TAX total
                         BigDecimal totalTaxOnTaxAmount = BigDecimal.ZERO;
+
                         //Loop through tax on tax, sum up all those values and add it to the calculated taxes
                         List<BigDecimal> taxOnTaxList = flatOrPercentValuesMap.get(TAX_ON_TAX) != null ? flatOrPercentValuesMap.get(TAX_ON_TAX) : null;
                         if(taxOnTaxList != null && !taxOnTaxList.isEmpty()){
@@ -277,9 +265,6 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                                 .subtract(pfcTaxes.get().min(BigDecimal.valueOf(18)))
                                 .setScale(2, BigDecimal.ROUND_HALF_UP);
 
-                        /*double percentTaxTotalAmount  = 0.0;
-                        double percentTaxTotal  = 0.0;*/
-
                         BigDecimal percentTaxTotalAmount = BigDecimal.ZERO;
                         BigDecimal percentTaxTotal = BigDecimal.ZERO;
 
@@ -312,6 +297,7 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                         // Round final result to 2 decimal places
                         percentTaxTotalAmount = difference.setScale(2, RoundingMode.HALF_UP);
 
+                        //calculatedTaxesTotal
                         BigDecimal calculatedTaxesTotal = percentTaxTotalAmount.add(totalFlatTaxAmount).add(pfcTaxes.get()).add(totalTaxOnTaxAmount);
 
                         //Check if the calculated taxes total is within + or - $1.00 of the currentItin's taxes
@@ -321,12 +307,78 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                                 .compareTo(BigDecimal.valueOf(1.00)) <= 0;
 
                         //Line number for debugging. Value set in channel for the time being.
-                        System.out.println("currentItinTaxes(" + currentItinTaxes + ") == calculatedTaxesTotal(" + calculatedTaxesTotal + ") ?: " + didCalculatedTaxesMatch + "LN: " + currentItin.getChannel());
+                        if (!didCalculatedTaxesMatch) {
+                            //log.info("\n");
+                            log.info("currentItinTaxes(" + currentItinTaxes + ") == calculatedTaxesTotal(" + calculatedTaxesTotal + ") ?: " + didCalculatedTaxesMatch + "; LN: " + currentItin.getChannel());
+                            /* Since the didCalculatedTaxesMatch was false, construct a TaxLadder List from convertedResponse
+                             * and compare the values on the currentItin TaxLadder and a
+                             * TaxLadder from the convertedResponse. The values should be the same.
+                             * If not, then log it.
+                             */
+                            log.info("Tax amount Difference (itineraryTaxes - calculated): " + currentItinTaxes.subtract(calculatedTaxesTotal) + "; LN: " + currentItin.getChannel());
+                            Map<String, String> sortedTaxLadderFromResponse = extractTaxLadderAsMap(taxes);
 
+                            if(currentItin.getTaxLadder() != null &&  !currentItin.getTaxLadder().isEmpty()) {
+
+                                //Convert the currentItin.getTaxLadder() to a sorted map
+                                Map<String, String> currentItinTaxLadderMap = new TreeMap<>();
+                                for (String taxLadder : currentItin.getTaxLadder()) {
+                                    String[] parts = taxLadder.split(" ");
+                                    if (parts.length == 2) {
+                                        currentItinTaxLadderMap.put(parts[0], parts[1]);
+                                    }
+                                }
+
+                                if (currentItinTaxLadderMap.size() != sortedTaxLadderFromResponse.size()) {
+                                    log.error("Entry count mismatch: ItineraryTaxLadder (" + currentItinTaxLadderMap.size() + ") " +
+                                            "!= Response TaxLadder (" + sortedTaxLadderFromResponse.size() + ") LN: " + currentItin.getChannel());
+
+                                    // Log entries in both maps separately
+                                    log.error("Itinerary TaxLadder : " + currentItinTaxLadderMap + " LN: " + currentItin.getChannel());
+                                    log.error("Response TaxLadder: " + sortedTaxLadderFromResponse + " LN: " + currentItin.getChannel());
+
+                                    // Log entries that are missing in the smaller map by collecting them in a list and log them at once
+                                    List<String> missingEntries = new ArrayList<>();
+                                    for (Map.Entry<String, String> entry : currentItinTaxLadderMap.entrySet()) {
+                                        if (!sortedTaxLadderFromResponse.containsKey(entry.getKey())) {
+                                            missingEntries.add("Key: " + entry.getKey() + " - Value: " + entry.getValue());
+                                        }
+                                    }
+                                    if (!missingEntries.isEmpty()) {
+                                        log.error("Missing entries in Response TaxLadder: " + missingEntries + " LN: " + currentItin.getChannel());
+                                    }
+                                    log.info("\n");
+                                }
+                                else {
+                                    // Compare each entry from both maps and log the differences
+                                    for (Map.Entry<String, String> entry : currentItinTaxLadderMap.entrySet()) {
+                                        String key = entry.getKey();
+                                        String currentValue = entry.getValue();
+                                        String responseValue = sortedTaxLadderFromResponse.get(key);
+
+                                        if (!currentValue.equals(responseValue)) {
+                                            log.error("Mismatch for key: " + key +
+                                                    " ItineraryTaxLadder value: " + currentValue +
+                                                    ", Response TaxLadder value: " + responseValue +
+                                                    " LN: " + currentItin.getChannel());
+                                        }
+                                    }
+                                    log.info("\n");
+                                }
+                            }
+                            else {
+                                log.error("currentItin.getTaxLadder() is null or empty. Cannot compare!");
+                            }
+                        }//end of if on didCalculatedTaxesMatch
+                        else{
+                            //log.debug("currentItinTaxes(" + currentItinTaxes + ") == calculatedTaxesTotal(" + calculatedTaxesTotal + ") ?: " + didCalculatedTaxesMatch + "; LN: " + currentItin.getChannel());
+                        }
+
+                        //Base Fare
                         itinTpDeductedWithTaxes = itinTpDeductedWithFlatTaxesAndPFC.subtract(percentTaxTotalAmount).setScale(2, BigDecimal.ROUND_HALF_UP);
 
                     } else {
-                        System.out.println("No taxes found");
+                        log.warn("No taxes found");
                     }
                 }
 
@@ -334,9 +386,39 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
 
         }
         else {
-            System.out.println("Converted response is null");
+            log.error("Converted response is null");
         }
 
     }//end of examineTaxes
+
+
+    /**
+     * Extracts the tax ladder from a list of Taxes objects and returns it as a sorted map.
+     * @param taxes
+     * @return Map<String, String>
+     */
+    public Map<String, String> extractTaxLadderAsMap(List<Taxes> taxes) {
+        Map<String, BigDecimal> taxLadderMap = new HashMap<>();
+
+        for (Taxes tax : taxes) {
+            // Get the first two characters of the tax group
+            String taxGroupPrefix = tax.getTaxGroup().substring(0, 2);
+
+            // Use the tax amount as-is without rounding
+            BigDecimal taxAmount = tax.getTaxAmount();
+
+            // Add the tax amount to the map, summing up if the key already exists
+            taxLadderMap.merge(taxGroupPrefix, taxAmount, BigDecimal::add);
+        }
+
+        // Convert the map values to formatted strings with two decimal places
+        Map<String, String> formattedTaxLadderMap = new TreeMap<>();
+        for (Map.Entry<String, BigDecimal> entry : taxLadderMap.entrySet()) {
+            //Leave the scale to 2 decimal places NO ROUNDING.
+            formattedTaxLadderMap.put(entry.getKey(), entry.getValue().setScale(2).toString());
+        }
+
+        return formattedTaxLadderMap;
+    }
 
 }
