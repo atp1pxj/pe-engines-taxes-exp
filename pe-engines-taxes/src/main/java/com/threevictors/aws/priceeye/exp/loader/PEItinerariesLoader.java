@@ -85,7 +85,21 @@ public class PEItinerariesLoader {
         itinerary.setInBrandsEnriched(null);
 
         itinerary.setFareConstructionText("");
-        itinerary.setTaxLadder(List.of(""));
+
+        if (taxBreakdown != null && !taxBreakdown.isEmpty()) {
+            int colon = taxBreakdown.indexOf(":");
+            String currency  = taxBreakdown.substring(0, colon);
+            String taxLadder = taxBreakdown.substring(colon + 1);
+
+            List<String> taxLadderList = Arrays.asList(taxLadder.split("\\|"));
+
+            itinerary.setTaxLadder(taxLadderList);
+            itinerary.setCurrency(currency);
+        }
+        else {
+            itinerary.setTaxLadder(List.of(""));
+        }
+
         itinerary.setChangeFee(0);
 
         //Temp stuffing of lineNumber in channel for debugging
