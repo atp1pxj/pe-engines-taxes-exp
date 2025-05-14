@@ -58,7 +58,8 @@ public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEng
                 legData.setTransferTypeLeg(true);
                 legData.setTransferType("STOP_OVER");
             }
-
+            //OB legs have a fareIndex of 0
+            legData.setFareIndex(0);
             legs.add(legData);
         }
 
@@ -78,6 +79,8 @@ public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEng
                 legData.setTransferType("CONNECTION");
             }
             //NOTE: For inbound, last leg, we dont set transferType
+            //IB legs have a fareIndex of 1
+            legData.setFareIndex(1);
             legs.add(legData);
         }
 
