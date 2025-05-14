@@ -305,6 +305,9 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
             if (parts.length == 2) {
                 currentItinTaxLadderMap.put(parts[0], parts[1]);
             }
+            //remove YQ and YR entries from the map.
+            currentItinTaxLadderMap.remove("YQ");
+            currentItinTaxLadderMap.remove("YR");
         }
 
         if (currentItinTaxLadderMap.size() != sortedTaxLadderFromResponse.size()) {
