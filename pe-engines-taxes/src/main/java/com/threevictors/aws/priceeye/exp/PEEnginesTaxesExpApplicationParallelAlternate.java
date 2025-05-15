@@ -191,7 +191,7 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
 
             //log.info("Final Basefare after deducting all taxes: " + itinTpDeductedWithFlatTaxesAndPFC.subtract(percentTaxTotalAmount));
             BigDecimal calculatedTaxesTotal = percentTaxTotalAmount.add(totalFlatTaxAmount).add(pfcTaxes);
-            validateCalculatedTaxes(currentItin, currentItinTaxes, calculatedTaxesTotal, taxes);
+            validateCalculatedTaxes(currentItin, currentItinTaxes, calculatedTaxesTotal, taxes, pfcTaxes);
         }
     }
 
@@ -276,17 +276,17 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
 
     }
 
-    private void validateCalculatedTaxes(PEItinerary currentItin, BigDecimal currentItinTaxes, BigDecimal calculatedTaxesTotal, ArrayList<Taxes> taxes) {
+    private void validateCalculatedTaxes(PEItinerary currentItin, BigDecimal currentItinTaxes, BigDecimal calculatedTaxesTotal, ArrayList<Taxes> taxes, BigDecimal pfcTaxes) {
         boolean didCalculatedTaxesMatch = currentItinTaxes.subtract(calculatedTaxesTotal)
                 .compareTo(BigDecimal.valueOf(-1.00)) >= 0
                 && currentItinTaxes.subtract(calculatedTaxesTotal)
                 .compareTo(BigDecimal.valueOf(1.00)) <= 0;
 
         if (!didCalculatedTaxesMatch) {
-            log.info("currentItinTaxes(" + currentItinTaxes + ") == calculatedTaxesTotal(" + calculatedTaxesTotal + ") ?: " + didCalculatedTaxesMatch + "; LN: " + currentItin.getChannel());
-            log.info("Tax amount Difference (itineraryTaxes - calculated): " + currentItinTaxes.subtract(calculatedTaxesTotal) + "; LN: " + currentItin.getChannel());
+            logRoute( currentItin );
+            log.info("Expected: " + currentItinTaxes + " Actual: " + calculatedTaxesTotal + " Diff: " + currentItinTaxes.subtract(calculatedTaxesTotal));
 
-            Map<String, String> sortedTaxLadderFromResponse = extractTaxLadderAsMap(taxes);
+            Map<String, String> sortedTaxLadderFromResponse = extractTaxLadderAsMap(taxes, pfcTaxes);
             compareTaxLadders(currentItin, sortedTaxLadderFromResponse);
         }
     }
@@ -303,41 +303,61 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
             if (parts.length == 2) {
                 currentItinTaxLadderMap.put(parts[0], parts[1]);
             }
-            //remove YQ and YR entries from the map.
-            currentItinTaxLadderMap.remove("YQ");
-            currentItinTaxLadderMap.remove("YR");
+        }
+        //remove YQ and YR entries from the map.
+        currentItinTaxLadderMap.remove("YQ");
+        currentItinTaxLadderMap.remove("YR");
+
+
+        Set<String> taxKeys = new TreeSet<>(currentItinTaxLadderMap.keySet());
+        taxKeys.addAll(sortedTaxLadderFromResponse.keySet());
+
+        boolean mismatchFound = false;
+        for (String taxKey : taxKeys) {
+            String expectedValue = currentItinTaxLadderMap.get(taxKey);
+            String responseValue = sortedTaxLadderFromResponse.get(taxKey);
+
+            if ( expectedValue == null || !expectedValue.equals(responseValue)) {
+                String diff = "";
+                if (expectedValue != null && responseValue != null) {
+                    diff = String.format("%.2f", Double.parseDouble( expectedValue ) - Double.parseDouble( responseValue ));
+                }
+                log.error(String.format("%s: Expected: %6s Actual: %6s Diff: %6s", taxKey, expectedValue == null ? "-----" : expectedValue, responseValue == null ? "-----" : responseValue, diff));
+                mismatchFound = true;
+            }
         }
 
-        if (currentItinTaxLadderMap.size() != sortedTaxLadderFromResponse.size()) {
-            log.error("Entry count mismatch: ItineraryTaxLadder (" + currentItinTaxLadderMap.size() + ") != Response TaxLadder (" + sortedTaxLadderFromResponse.size() + ") LN: " + currentItin.getChannel());
-            log.error("Itinerary TaxLadder : " + currentItinTaxLadderMap + " LN: " + currentItin.getChannel());
-            log.error("Response TaxLadder: " + sortedTaxLadderFromResponse + " LN: " + currentItin.getChannel());
-            // Log entries that are missing in the smaller map by collecting them in a list and log them at once
-            List<String> missingEntries = new ArrayList<>();
-            for (Map.Entry<String, String> entry : currentItinTaxLadderMap.entrySet()) {
-                if (!sortedTaxLadderFromResponse.containsKey(entry.getKey())) {
-                    missingEntries.add(entry.getKey() + "=" + entry.getValue());
-                }
-            }
-            if (!missingEntries.isEmpty()) {
-                log.error("Missing entries in Response TaxLadder: " + missingEntries + " LN: " + currentItin.getChannel());
-            }
+        if (mismatchFound) {
             log.info("\n");
-        } else {
-            for (Map.Entry<String, String> entry : currentItinTaxLadderMap.entrySet()) {
-                String key = entry.getKey();
-                String currentValue = entry.getValue();
-                String responseValue = sortedTaxLadderFromResponse.get(key);
-
-                if (!currentValue.equals(responseValue)) {
-                    log.error("Mismatch for key: " + key + " ItineraryTaxLadder value: " + currentValue + ", Response TaxLadder value: " + responseValue + " LN: " + currentItin.getChannel());
-                }
-                log.info("\n");
-            }
         }
+
     }
 
 
+    private void logRoute( PEItinerary currentItin ) {
+        StringBuilder route = new StringBuilder();
+
+        for (RawLeg leg : currentItin.getOutboundLegs()) {
+            if (route.length() > 0) {
+                route.append("-");
+            }
+            route.append(leg.getOriginAirportCode()).append("(").append(leg.getMarketingCarrier()).append(leg.getFlightNumber()).append(")").append(leg.getDestinationAirportCode());
+        }
+
+        if (currentItin.getInboundLegs() != null && !currentItin.getInboundLegs().isEmpty()) {
+            route.append(" / ");
+            int len = route.length();
+            for (RawLeg leg : currentItin.getInboundLegs()) {
+                if (route.length() > len) {
+                    route.append("-");
+                }
+                route.append(leg.getOriginAirportCode()).append("(").append(leg.getMarketingCarrier()).append(leg.getFlightNumber()).append(")").append(leg.getDestinationAirportCode());
+            }
+        }
+
+        log.info("Route: " + route.toString() + " LN: " + currentItin.getChannel());
+
+    }
 
 
     /**
@@ -345,7 +365,7 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
      * @param taxes
      * @return Map<String, String>
      */
-    public Map<String, String> extractTaxLadderAsMap(List<Taxes> taxes) {
+    public Map<String, String> extractTaxLadderAsMap(List<Taxes> taxes, BigDecimal pfcTaxes) {
         Map<String, BigDecimal> taxLadderMap = new HashMap<>();
 
         for (Taxes tax : taxes) {
@@ -357,6 +377,10 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
 
             // Add the tax amount to the map, summing up if the key already exists
             taxLadderMap.merge(taxGroupPrefix, taxAmount, BigDecimal::add);
+        }
+
+        if (pfcTaxes.compareTo(BigDecimal.ZERO) > 0) {
+            taxLadderMap.put("XF", pfcTaxes);
         }
 
         // Convert the map values to formatted strings with two decimal places
