@@ -30,7 +30,6 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
     //Made up string to identify the tax on tax
     private static final String TAX_ON_TAX = "tax on tax";
 
-    //private static final int QUEUE_CAPACITY = 1000; // Tune as needed
     private static final int QUEUE_CAPACITY = 2000; // Tune as needed
     private static final int THREAD_COUNT = Runtime.getRuntime().availableProcessors();
 
@@ -53,12 +52,13 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
 
         X1TaxRecordDataPointsLoader x1TaxRecordDataPointsLoader = new X1TaxRecordDataPointsLoader();
         x1TaxRecordDataPointsMap = Collections.unmodifiableMap(
-                x1TaxRecordDataPointsLoader.loadTaxRecordDataPoints("pe-engines-taxes/src/main/resources/xldatapoints_all_taxrecs_from_redis_all.txt")
+                x1TaxRecordDataPointsLoader.loadTaxRecordDataPoints("pe-engines-taxes/src/main/resources/xldatapoints_all_taxrecs_from_redis_all_20250515.txt")
         );
 
         //Load the airport country code map
         MetadataReader metadataReader = new MetadataReader();
 
+        //Loads airports from US, Puerto Rico (PR) and Virgin Islands (VI) only.
         airportCountryCodeMap = Collections.unmodifiableMap(
                 metadataReader.getAirportCountryMapUSDomesticOnly()
         );
@@ -111,12 +111,12 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                 lineList.add(String.valueOf(lineNumber));
 
                 PEItinerary itinerary = PEItinerariesLoader.parsePEItineraryLine(lineList);
-                queue.put( itinerary );
+                    queue.put( itinerary );
             }
 
             // Signal EOF to workers
             for (int i = 0; i < THREAD_COUNT; i++) {
-                queue.put(new PEItinerary());
+                    queue.put(new PEItinerary());
             }
         }
         catch (Exception e) {
@@ -252,11 +252,17 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
 
         currentItin.getOutboundLegs().stream()
                 .filter(leg -> airportCountryCodeMap.containsKey(leg.getOriginAirportCode()))
-                .forEach(leg -> pfcTaxes.set(pfcTaxes.get().add(BigDecimal.valueOf(4.50))));
+                .forEach(leg -> {
+                    BigDecimal taxAmount = "ANC".equals(leg.getOriginAirportCode()) ? BigDecimal.valueOf(3.00) : BigDecimal.valueOf(4.50);
+                    pfcTaxes.set(pfcTaxes.get().add(taxAmount));
+                });
 
         currentItin.getInboundLegs().stream()
                 .filter(leg -> airportCountryCodeMap.containsKey(leg.getOriginAirportCode()))
-                .forEach(leg -> pfcTaxes.set(pfcTaxes.get().add(BigDecimal.valueOf(4.50))));
+                .forEach(leg -> {
+                    BigDecimal taxAmount = "ANC".equals(leg.getOriginAirportCode()) ? BigDecimal.valueOf(3.00) : BigDecimal.valueOf(4.50);
+                    pfcTaxes.set(pfcTaxes.get().add(taxAmount));
+                });
 
         return pfcTaxes.get();
     }

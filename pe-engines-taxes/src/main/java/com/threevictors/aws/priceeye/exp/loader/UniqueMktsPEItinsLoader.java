@@ -7,6 +7,9 @@ import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 
+//NEW INPUT CSV DATA GENERATION CLASS
+//NOTE: Run this class to generate the unique itineraries from the large input files.
+// The output will be written to a text file in the specified directory.
 public class UniqueMktsPEItinsLoader {
     private static final Set<String> seenKeys = ConcurrentHashMap.newKeySet();
     private static final List<String> outputLines = Collections.synchronizedList(new ArrayList<>());

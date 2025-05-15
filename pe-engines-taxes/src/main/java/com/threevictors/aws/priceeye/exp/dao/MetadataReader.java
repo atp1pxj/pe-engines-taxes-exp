@@ -23,8 +23,7 @@ public class MetadataReader extends AuroraMetadataReader {
 
     public Map<String, String> getAirportCountryMapUSDomesticOnly() {
         TreeMap airportToCountryMap = new TreeMap();
-        //String query = "select a.airportCode, c.countryCode from airportlocation a join citylocation c on a.cityCode = c.cityCode WHERE c.countryCode IN ('US','MX','CA');";
-        String query = "select a.airportCode, c.countryCode from airportlocation a join citylocation c on a.cityCode = c.cityCode WHERE c.countryCode IN ('US');";
+        String query = "select a.airportCode, c.countryCode from airportlocation a join citylocation c on a.cityCode = c.cityCode WHERE c.countryCode IN ('US', 'PR', 'VI');";
 
         try {
             try (
