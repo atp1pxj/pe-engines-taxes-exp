@@ -42,8 +42,10 @@ public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEng
         for (int i = 0; i < peItinerary.getOutboundLegs().size(); i++) {
             RawLeg leg = peItinerary.getOutboundLegs().get(i);
             TaxLegVelocityData legData = new TaxLegVelocityData();
-            legData.setDepartsDateTime(leg.getDepartDate() + " " + String.format("%02d:%02d", leg.getDepartTime()/100, leg.getDepartTime()%100));
-            legData.setArrivesDateTime(leg.getArriveDate() + " " + String.format("%02d:%02d", leg.getArriveTime()/100, leg.getArriveTime()%100));
+
+            legData.setDepartsDateTime(String.format("%06d %02d:%02d", (leg.getDepartDate() % 1000000), leg.getDepartTime() / 100, leg.getDepartTime() % 100));
+            legData.setArrivesDateTime(String.format("%06d %02d:%02d", (leg.getArriveDate() % 1000000), leg.getArriveTime() / 100, leg.getArriveTime() % 100));
+
             legData.setOriginCode(leg.getOriginAirportCode());
             legData.setDestinationCode(leg.getDestinationAirportCode());
             legData.setMarketedCarrier(leg.getMarketingCarrier());
@@ -67,8 +69,10 @@ public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEng
         for (int i = 0; i < peItinerary.getInboundLegs().size(); i++) {
             RawLeg leg = peItinerary.getInboundLegs().get(i);
             TaxLegVelocityData legData = new TaxLegVelocityData();
-            legData.setDepartsDateTime(leg.getDepartDate() + " " + String.format("%02d:%02d", leg.getDepartTime()/100, leg.getDepartTime()%100));
-            legData.setArrivesDateTime(leg.getArriveDate() + " " + String.format("%02d:%02d", leg.getArriveTime()/100, leg.getArriveTime()%100));
+
+            legData.setDepartsDateTime(String.format("%06d %02d:%02d", (leg.getDepartDate() % 1000000), leg.getDepartTime() / 100, leg.getDepartTime() % 100));
+            legData.setArrivesDateTime(String.format("%06d %02d:%02d", (leg.getArriveDate() % 1000000), leg.getArriveTime() / 100, leg.getArriveTime() % 100));
+
             legData.setOriginCode(leg.getOriginAirportCode());
             legData.setDestinationCode(leg.getDestinationAirportCode());
             legData.setMarketedCarrier(leg.getMarketingCarrier());
