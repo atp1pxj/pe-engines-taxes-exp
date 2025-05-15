@@ -17,32 +17,10 @@ public class UniqueMktsPEItinsLoader {
         //All parts
         // /Users/pjannapureddy/All_sprints_2/3victors/2025_sprints/Sprint8_Apr14_Apr_25/1_Athena_query_results/large_input_file_and_split/split_output/
 
-        File inputDir = new File("/Users/pjannapureddy/All_sprints_2/3victors/2025_sprints/Sprint8_Apr14_Apr_25/1_Athena_query_results/large_input_file_and_split/split_output/");
         File outputFile = new File("pe-engines-taxes/src/main/resources/PEItineraries_from_athena_csv_parallel/generated_output_txts/PEItins_parallel_unique_output.txt");
         String template = new String(Files.readAllBytes(Paths.get("pe-engines-taxes/src/main/resources/PEItineraries_from_athena_csv_parallel/PEItin_template.txt")));
 
-        ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
-        List<Future<?>> futures = new ArrayList<>();
-
-        for (File file : Objects.requireNonNull(inputDir.listFiles((dir, name) -> name.endsWith(".csv")))) {
-            futures.add(executor.submit(() -> {
-                try {
-                    processFile(file, template);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }));
-        }
-
-
-        for (Future<?> future : futures) {
-            try {
-                future.get(); // wait for all to finish
-            } catch (InterruptedException | ExecutionException e) {
-                e.printStackTrace(); // handle exceptions appropriately
-            }
-        }
-        executor.shutdown();
+        processFile(new File("pe-engines-taxes/src/main/data/raw-us-world.csv"), template);
 
         // Write all results to one output file
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFile))) {
@@ -56,18 +34,17 @@ public class UniqueMktsPEItinsLoader {
     }
 
     private static void processFile(File inputFile, String template) throws IOException {
+
+        String headerLine = "itin_validatingcarrier,OBL_originairportcode,OBL_destinationairportcode,OBL_flightNumber,OBL_departdate,OBL_departtime,OBL_arrivedate,OBL_arrivetime,IBL_originairportcode,IBL_destinationairportcode,IBL_flightnumber,IBL_departdate,IBL_departtime,IBL_arrivedate,IBL_arrivetime,itin_cabin,itin_bookingcode,itin_totalamount,taxbreakdown,yq_val,yr_val,itin_true_tax_amount";
+
+        List<String> headers = Arrays.asList(headerLine.split(","));
+        Map<String, Integer> headerMap = new HashMap<>();
+        for (int i = 0; i < headers.size(); i++) {
+            headerMap.put(headers.get(i).trim(), i);
+        }
+
+
         try (BufferedReader reader = new BufferedReader(new FileReader(inputFile))) {
-            String headerLine = reader.readLine();
-            if (headerLine == null) {
-                return;
-            }
-
-            List<String> headers = Arrays.asList(headerLine.split(","));
-            Map<String, Integer> headerMap = new HashMap<>();
-            for (int i = 0; i < headers.size(); i++) {
-                headerMap.put(headers.get(i).trim(), i);
-            }
-
             String line;
             while ((line = reader.readLine()) != null) {
                 String[] values = line.split(",");
