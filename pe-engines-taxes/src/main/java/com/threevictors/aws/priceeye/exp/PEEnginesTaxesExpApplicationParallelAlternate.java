@@ -139,7 +139,7 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
 
         PEEnginesTaxesExpApplicationParallelAlternate currentApp = new PEEnginesTaxesExpApplicationParallelAlternate();
 
-        File source = new File("pe-engines-taxes/src/main/resources/PEItineraries_from_athena_csv_parallel/generated_output_txts/PEItins_parallel_unique_output_deduped.txt");
+        File source = new File("pe-engines-taxes/src/main/resources/PEItineraries_from_athena_csv_parallel/generated_output_txts/PEItins_parallel_unique_output.txt");
 
         currentApp.startWorkerThreads();
         currentApp.readSourceFile(source);
@@ -347,7 +347,15 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
             if (route.length() > 0) {
                 route.append("-");
             }
-            route.append(leg.getOriginAirportCode()).append("(").append(leg.getMarketingCarrier()).append(leg.getFlightNumber()).append(")").append(leg.getDestinationAirportCode());
+            route.append(leg.getOriginAirportCode())
+                    .append("(")
+                        .append(leg.getMarketingCarrier())
+                        .append(leg.getFlightNumber())
+                        .append(" ")
+                        .append(leg.getDepartDate()).append(" ").append(leg.getDepartTime()).append(":")
+                        .append(leg.getArriveDate()).append(" ").append(leg.getArriveTime())
+                    .append(")")
+                    .append(leg.getDestinationAirportCode());
         }
 
         if (currentItin.getInboundLegs() != null && !currentItin.getInboundLegs().isEmpty()) {
@@ -357,7 +365,15 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                 if (route.length() > len) {
                     route.append("-");
                 }
-                route.append(leg.getOriginAirportCode()).append("(").append(leg.getMarketingCarrier()).append(leg.getFlightNumber()).append(")").append(leg.getDestinationAirportCode());
+                route.append(leg.getOriginAirportCode())
+                        .append("(")
+                        .append(leg.getMarketingCarrier())
+                        .append(leg.getFlightNumber())
+                        .append(" ")
+                        .append(leg.getDepartDate()).append(" ").append(leg.getDepartTime()).append(":")
+                        .append(leg.getArriveDate()).append(" ").append(leg.getArriveTime())
+                        .append(")")
+                        .append(leg.getDestinationAirportCode());
             }
         }
 
