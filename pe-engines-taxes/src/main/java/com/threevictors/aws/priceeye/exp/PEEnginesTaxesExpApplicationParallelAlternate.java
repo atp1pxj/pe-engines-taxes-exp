@@ -111,7 +111,7 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                 lineList.add(String.valueOf(lineNumber));
 
                 PEItinerary itinerary = PEItinerariesLoader.parsePEItineraryLine(lineList);
-                    queue.put( itinerary );
+                queue.put( itinerary );
             }
 
             // Signal EOF to workers

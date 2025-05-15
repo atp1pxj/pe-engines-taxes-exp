@@ -9,7 +9,9 @@ import lombok.Data;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Data
 public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEngineReqVelocityData> {
@@ -33,6 +35,13 @@ public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEng
         return velocityData;
     }
 
+    //Create and initialize a static map with cabin keys and cabin values
+    private static final Map<String, String> CABIN_MAP = Map.of(
+            "F", "FIRST",
+            "B", "BUSINESS",
+            "E", "ECONOMY",
+            "P", "PREMIUM_ECONOMY"
+    );
 
     private void stubTaxEngineReqVelocityData(TaxEngineReqVelocityData ctx, PEItinerary peItinerary) {
 
@@ -62,6 +71,11 @@ public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEng
             }
             //OB legs have a fareIndex of 0
             legData.setFareIndex(0);
+            //Note: Empty cabin causes engine response to fail.
+            if(leg.getCabin()!=null && !leg.getCabin().isEmpty()) {
+                legData.setCabin(CABIN_MAP.get(leg.getCabin().trim()));
+            }
+
             legs.add(legData);
         }
 
@@ -85,6 +99,10 @@ public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEng
             //NOTE: For inbound, last leg, we dont set transferType
             //IB legs have a fareIndex of 1
             legData.setFareIndex(1);
+            //Note: Empty cabin causes engine response to fail.
+            if(leg.getCabin() != null && !leg.getCabin().isEmpty()) {
+                legData.setCabin(CABIN_MAP.get(leg.getCabin().trim()));
+            }
             legs.add(legData);
         }
 

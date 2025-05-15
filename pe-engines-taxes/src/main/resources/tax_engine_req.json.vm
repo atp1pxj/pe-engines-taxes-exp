@@ -19,6 +19,7 @@
           "operatedCarrier": "$!{leg.operatedCarrier}",
           "operatedFlightNo": ${leg.operatedFlightNo},
           "rbd": "",
+          #if($leg.cabin && !$leg.cabin.isEmpty()) "cabin": "${leg.cabin}",#end
           "legIndicator": "F",
           "fareIndex": ${leg.fareIndex},
             #if(${leg.isTransferTypeLeg}) "transferType": "${leg.transferType}",#end

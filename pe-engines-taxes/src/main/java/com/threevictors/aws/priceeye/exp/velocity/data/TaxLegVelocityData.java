@@ -20,4 +20,5 @@ public class TaxLegVelocityData {
     private int fareIndex;
     private boolean isTransferTypeLeg;
     private String transferType;
+    private String cabin;
 }
