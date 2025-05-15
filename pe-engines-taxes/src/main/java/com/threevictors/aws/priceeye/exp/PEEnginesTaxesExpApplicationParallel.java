@@ -51,7 +51,7 @@ public class PEEnginesTaxesExpApplicationParallel {
         TaxEngineRequestBuilder taxEngineRequestBuilder = new TaxEngineRequestBuilder();
 
         X1TaxRecordDataPointsLoader x1TaxRecordDataPointsLoader = new X1TaxRecordDataPointsLoader();
-        x1TaxRecordDataPointsMap = x1TaxRecordDataPointsLoader.loadTaxRecordDataPoints("pe-engines-taxes/src/main/resources/xldatapoints_all_taxrecs_from_redis_all.txt");
+        x1TaxRecordDataPointsMap = x1TaxRecordDataPointsLoader.loadTaxRecordDataPoints("pe-engines-taxes/src/main/resources/xldatapoints_all_taxrecs_from_redis_all_20250515.txt");
 
         //Load the airport country code map
         MetadataReader metadataReader = new MetadataReader();

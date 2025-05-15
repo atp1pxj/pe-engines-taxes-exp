@@ -53,7 +53,7 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
 
         X1TaxRecordDataPointsLoader x1TaxRecordDataPointsLoader = new X1TaxRecordDataPointsLoader();
         x1TaxRecordDataPointsMap = Collections.unmodifiableMap(
-                x1TaxRecordDataPointsLoader.loadTaxRecordDataPoints("pe-engines-taxes/src/main/resources/xldatapoints_all_taxrecs_from_redis_all.txt")
+                x1TaxRecordDataPointsLoader.loadTaxRecordDataPoints("pe-engines-taxes/src/main/resources/xldatapoints_all_taxrecs_from_redis_all_20250515.txt")
         );
 
         //Load the airport country code map
@@ -111,12 +111,12 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                 lineList.add(String.valueOf(lineNumber));
 
                 PEItinerary itinerary = PEItinerariesLoader.parsePEItineraryLine(lineList);
-                queue.put( itinerary );
+                    queue.put( itinerary );
             }
 
             // Signal EOF to workers
             for (int i = 0; i < THREAD_COUNT; i++) {
-                queue.put(new PEItinerary());
+                    queue.put(new PEItinerary());
             }
         }
         catch (Exception e) {
