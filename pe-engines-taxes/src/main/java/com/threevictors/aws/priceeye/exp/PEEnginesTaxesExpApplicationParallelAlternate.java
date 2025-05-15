@@ -322,7 +322,7 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                 if (expectedValue != null && responseValue != null) {
                     diff = String.format("%.2f", Double.parseDouble( expectedValue ) - Double.parseDouble( responseValue ));
                 }
-                log.error(String.format("%s: Expected: %6s Actual: %6s Diff: %6s", taxKey, expectedValue == null ? "-----" : expectedValue, responseValue == null ? "-----" : responseValue, diff));
+                log.error(String.format("%s: Expected: %6s Actual: %6s Diff: %6s", taxKey, expectedValue == null ? "------" : expectedValue, responseValue == null ? "------" : responseValue, diff));
                 mismatchFound = true;
             }
         }
@@ -355,7 +355,7 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
             }
         }
 
-        log.info("Route: " + route.toString() + " LN: " + currentItin.getChannel());
+        log.info("Route: " + route + " $" + currentItin.getTotalPrice() +  " LN: " + currentItin.getChannel());
 
     }
 
