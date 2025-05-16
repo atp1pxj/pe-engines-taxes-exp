@@ -43,6 +43,44 @@ public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEng
             "P", "PREMIUM_ECONOMY"
     );
 
+    private TaxLegVelocityData buildLegData( RawLeg leg, boolean lastLeg) {
+
+        TaxLegVelocityData legData = new TaxLegVelocityData();
+
+        legData.setDepartsDateTime(String.format("%06d %02d:%02d", (leg.getDepartDate() % 1000000), leg.getDepartTime() / 100, leg.getDepartTime() % 100));
+        legData.setArrivesDateTime(String.format("%06d %02d:%02d", (leg.getArriveDate() % 1000000), leg.getArriveTime() / 100, leg.getArriveTime() % 100));
+
+        legData.setOriginCode(leg.getOriginAirportCode());
+        legData.setDestinationCode(leg.getDestinationAirportCode());
+        legData.setMarketedCarrier(leg.getMarketingCarrier());
+        legData.setMarketedFlightNo(leg.getFlightNumber());
+        legData.setOperatedFlightNo(legData.getMarketedFlightNo());
+
+        if ( legData.getOperatedCarrier() == null || legData.getOperatedCarrier().isEmpty() ) {
+            legData.setOperatedCarrier(legData.getMarketedCarrier());
+        }
+        else {
+            legData.setOperatedCarrier(leg.getOperatingCarrier());
+        }
+
+        if (lastLeg) {
+            legData.setTransferTypeLeg(true);
+            legData.setTransferType("STOP_OVER");
+        }
+        else {
+            legData.setTransferTypeLeg(true);
+            legData.setTransferType("CONNECTION");
+        }
+
+        //Note: Empty cabin causes engine response to fail.
+        if ( leg.getCabin() != null && !leg.getCabin().isEmpty()) {
+            legData.setCabin(CABIN_MAP.get(leg.getCabin().trim()));
+        }
+
+        return legData;
+    }
+
+
     private void stubTaxEngineReqVelocityData(TaxEngineReqVelocityData ctx, PEItinerary peItinerary) {
 
         List<TaxLegVelocityData> legs = new ArrayList<>();
@@ -50,31 +88,9 @@ public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEng
         //for (RawLeg leg : peItinerary.getOutboundLegs()) {
         for (int i = 0; i < peItinerary.getOutboundLegs().size(); i++) {
             RawLeg leg = peItinerary.getOutboundLegs().get(i);
-            TaxLegVelocityData legData = new TaxLegVelocityData();
-
-            legData.setDepartsDateTime(String.format("%06d %02d:%02d", (leg.getDepartDate() % 1000000), leg.getDepartTime() / 100, leg.getDepartTime() % 100));
-            legData.setArrivesDateTime(String.format("%06d %02d:%02d", (leg.getArriveDate() % 1000000), leg.getArriveTime() / 100, leg.getArriveTime() % 100));
-
-            legData.setOriginCode(leg.getOriginAirportCode());
-            legData.setDestinationCode(leg.getDestinationAirportCode());
-            legData.setMarketedCarrier(leg.getMarketingCarrier());
-            legData.setOperatedCarrier(leg.getOperatingCarrier());
-            legData.setMarketedFlightNo(leg.getFlightNumber());
-            if (i < peItinerary.getOutboundLegs().size() - 1) {
-                legData.setTransferTypeLeg(true);
-                legData.setTransferType("CONNECTION");
-            }
-            //NOTE: For outbound, last leg, we set transferType to STOP_OVER
-            if (i == peItinerary.getOutboundLegs().size()-1) {
-                legData.setTransferTypeLeg(true);
-                legData.setTransferType("STOP_OVER");
-            }
+            TaxLegVelocityData legData = buildLegData(leg, i == peItinerary.getOutboundLegs().size() - 1);
             //OB legs have a fareIndex of 0
             legData.setFareIndex(0);
-            //Note: Empty cabin causes engine response to fail.
-            if(leg.getCabin()!=null && !leg.getCabin().isEmpty()) {
-                legData.setCabin(CABIN_MAP.get(leg.getCabin().trim()));
-            }
 
             legs.add(legData);
         }
@@ -82,27 +98,13 @@ public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEng
        // for (RawLeg leg : peItinerary.getInboundLegs()) {
         for (int i = 0; i < peItinerary.getInboundLegs().size(); i++) {
             RawLeg leg = peItinerary.getInboundLegs().get(i);
-            TaxLegVelocityData legData = new TaxLegVelocityData();
 
-            legData.setDepartsDateTime(String.format("%06d %02d:%02d", (leg.getDepartDate() % 1000000), leg.getDepartTime() / 100, leg.getDepartTime() % 100));
-            legData.setArrivesDateTime(String.format("%06d %02d:%02d", (leg.getArriveDate() % 1000000), leg.getArriveTime() / 100, leg.getArriveTime() % 100));
+            boolean lastLeg = i == peItinerary.getInboundLegs().size() - 1;
+            TaxLegVelocityData legData = buildLegData(leg, lastLeg );
 
-            legData.setOriginCode(leg.getOriginAirportCode());
-            legData.setDestinationCode(leg.getDestinationAirportCode());
-            legData.setMarketedCarrier(leg.getMarketingCarrier());
-            legData.setOperatedCarrier(leg.getOperatingCarrier());
-            legData.setMarketedFlightNo(leg.getFlightNumber());
-            if (i < peItinerary.getInboundLegs().size() - 1) {
-                legData.setTransferTypeLeg(true);
-                legData.setTransferType("CONNECTION");
-            }
-            //NOTE: For inbound, last leg, we dont set transferType
-            //IB legs have a fareIndex of 1
+            if (lastLeg) legData.setTransferTypeLeg(false);
+
             legData.setFareIndex(1);
-            //Note: Empty cabin causes engine response to fail.
-            if(leg.getCabin() != null && !leg.getCabin().isEmpty()) {
-                legData.setCabin(CABIN_MAP.get(leg.getCabin().trim()));
-            }
             legs.add(legData);
         }
 

@@ -7,6 +7,8 @@ import com.threevictors.aws.priceeye.exp.dao.MetadataReader;
 import com.threevictors.aws.priceeye.exp.loader.PEItinerariesLoader;
 import com.threevictors.aws.priceeye.exp.loader.X1TaxRecordDataPointsLoader;
 import com.threevictors.aws.priceeye.exp.model.*;
+import com.threevictors.aws.priceeye.exp.data.*;
+
 import com.threevictors.aws.priceeye.exp.taxengine.TaxEngineCommunicator;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -16,7 +18,6 @@ import java.io.File;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.*;
 import java.io.FileReader;
@@ -99,7 +100,7 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
 
 
 
-    private void readSourceFile(File source) {
+    private void readSourceFile(File source, int specificLineNumber) {
         //Read the CSV directly and put it into the queue
         try (CSVReader reader = new CSVReader(new FileReader(source))) {
             String line[];
@@ -107,16 +108,21 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
 
             while ((line = reader.readNext()) != null) {
                 lineNumber++;
+
+                if (specificLineNumber != -1 && lineNumber != specificLineNumber) {
+                    continue;
+                }
+
                 List<String> lineList = new ArrayList<>(Arrays.asList(line));
                 lineList.add(String.valueOf(lineNumber));
 
                 PEItinerary itinerary = PEItinerariesLoader.parsePEItineraryLine(lineList);
-                queue.put( itinerary );
+                    queue.put( itinerary );
             }
 
             // Signal EOF to workers
             for (int i = 0; i < THREAD_COUNT; i++) {
-                    queue.put(new PEItinerary());
+                queue.put(new PEItinerary());
             }
         }
         catch (Exception e) {
@@ -137,12 +143,18 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
 
     public static void main(String[] args) throws Exception {
 
+        int lineNumber = -1;
+
+        if (args.length > 0) {
+            lineNumber = Integer.parseInt(args[0]);
+        }
+
         PEEnginesTaxesExpApplicationParallelAlternate currentApp = new PEEnginesTaxesExpApplicationParallelAlternate();
 
         File source = new File("pe-engines-taxes/src/main/resources/PEItineraries_from_athena_csv_parallel/generated_output_txts/PEItins_parallel_unique_output.txt");
 
         currentApp.startWorkerThreads();
-        currentApp.readSourceFile(source);
+        currentApp.readSourceFile(source, lineNumber);
         currentApp.await();
 
         log.info("✅ Processing complete.");
@@ -156,9 +168,7 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
             return;
         }
 
-        BigDecimal itinTpOriginal = BigDecimal.valueOf(currentItin.getTotalPrice()).setScale(2, BigDecimal.ROUND_HALF_UP);
-        BigDecimal currentItinTaxes = BigDecimal.valueOf(currentItin.getTaxes()).setScale(2, BigDecimal.ROUND_HALF_UP);
-        BigDecimal itinTpDeductedWithTaxes = itinTpOriginal;
+        BigDecimal itineraryTotal = BigDecimal.valueOf(currentItin.getTotalPrice()).setScale(2, BigDecimal.ROUND_HALF_UP);
 
         ArrayList<ExecutionResponse> executionResponses = convertedResponse.getExecutionResponses();
         if (executionResponses == null || executionResponses.isEmpty()) {
@@ -166,37 +176,35 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
             return;
         }
 
-        for (ExecutionResponse executionResponse : executionResponses) {
-            ArrayList<Taxes> taxes = executionResponse.getTaxes();
-            if (taxes == null || taxes.isEmpty()) {
-                log.warn("No taxes found in execution response");
-                continue;
-            }
+        ExecutionResponse executionResponse = executionResponses.get(0);
 
-            //populate the flatOrPercentValuesMap with the chargeDetails from each tax
-            Map<String, List<BigDecimal>> flatOrPercentValuesMap = processChargeDetails(taxes);
-
-            if (flatOrPercentValuesMap.isEmpty()) {
-                log.warn("No valid tax details found");
-                continue;
-            }
-
-            BigDecimal totalFlatTaxAmount = calculateFlatAndTaxOnTax(flatOrPercentValuesMap, itinTpDeductedWithTaxes);
-            BigDecimal itinTpDeductedWithFlatTaxes = itinTpDeductedWithTaxes.subtract(totalFlatTaxAmount);
-
-            BigDecimal pfcTaxes = calculatePFCTaxes(currentItin);
-            BigDecimal itinTpDeductedWithFlatTaxesAndPFC = itinTpDeductedWithFlatTaxes.subtract(pfcTaxes.min(BigDecimal.valueOf(18)));
-
-            BigDecimal percentTaxTotalAmount = calculatePercentTax(flatOrPercentValuesMap, itinTpDeductedWithFlatTaxesAndPFC);
-
-            //log.info("Final Basefare after deducting all taxes: " + itinTpDeductedWithFlatTaxesAndPFC.subtract(percentTaxTotalAmount));
-            BigDecimal calculatedTaxesTotal = percentTaxTotalAmount.add(totalFlatTaxAmount).add(pfcTaxes);
-            validateCalculatedTaxes(currentItin, currentItinTaxes, calculatedTaxesTotal, taxes, pfcTaxes);
+        List<Taxes> taxes = executionResponse.getTaxes();
+        if (taxes == null || taxes.isEmpty()) {
+            log.warn("No taxes found in execution response");
+            return;
         }
+
+        TaxLadder taxLadder = new TaxLadder();
+
+        processChargeDetails(taxes, taxLadder);
+
+        if (taxLadder.isEmpty()) {
+            log.warn("No valid tax details found");
+            return;
+        }
+
+        BigDecimal pfcTaxes = calculatePFCTaxes(currentItin);
+
+        if ( pfcTaxes.compareTo( BigDecimal.ZERO ) > 0) {
+            taxLadder.addFlatTaxRate("XF", pfcTaxes.min(BigDecimal.valueOf(18)));
+        }
+
+        calculatePercentTax( itineraryTotal, taxLadder );
+
+        validateCalculatedTaxes(currentItin, taxLadder );
     }
 
-    private Map<String, List<BigDecimal>> processChargeDetails(ArrayList<Taxes> taxes) {
-        Map<String, List<BigDecimal>> flatOrPercentValuesMap = new HashMap<>();
+    private void processChargeDetails( List<Taxes> taxes, TaxLadder taxLadder ) {
 
         for (Taxes tax : taxes) {
             ArrayList<ChargeDetail> chargeDetails = tax.getChargeDetails();
@@ -215,16 +223,28 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                     continue;
                 }
 
-                if ("Flat Tax".equals(percentOrFlatTag)) {
-                    flatOrPercentValuesMap.computeIfAbsent(FLAT_TAX, k -> new ArrayList<>())
-                            .add(currentChargeDetail.getResponseCharge().setScale(2, BigDecimal.ROUND_HALF_UP));
-                } else if ("Percent Tax".equals(percentOrFlatTag)) {
-                    processPercentTax(currentChargeDetail, mapKeyLookup, flatOrPercentValuesMap);
+                String taxCode = currentChargeDetail.getTaxKey().split(",")[1];
+
+                switch (percentOrFlatTag) {
+                    case FLAT_TAX:
+                        taxLadder.addFlatTaxRate(taxCode, currentChargeDetail.getResponseCharge());
+                        break;
+
+                    case PERCENT_TAX:
+                        if (currentChargeDetail.getChargeDescription() != null && currentChargeDetail.getChargeDescription().contains("% of 100.00USD")) {
+                            taxLadder.addPercentageTaxRate(taxCode, currentChargeDetail.getResponseCharge());
+                        }
+                        // Tax on Tax
+                        else {
+                            taxLadder.addFlatTaxRate(taxCode, currentChargeDetail.getResponseCharge());
+                        }
+                        break;
+
+                    default:
+                        throw new RuntimeException("Unexpected percentOrFlatTag: " + percentOrFlatTag);
                 }
             }
         }
-
-        return flatOrPercentValuesMap;
     }
 
     private void processPercentTax(ChargeDetail currentChargeDetail, String mapKeyLookup, Map<String, List<BigDecimal>> flatOrPercentValuesMap) {
@@ -267,45 +287,47 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
         return pfcTaxes.get();
     }
 
-    private BigDecimal calculatePercentTax(Map<String, List<BigDecimal>> flatOrPercentValuesMap, BigDecimal itinTpDeductedWithFlatTaxesAndPFC) {
-        BigDecimal percentTaxTotalAmount = BigDecimal.ZERO;
-        BigDecimal percentTaxTotal = flatOrPercentValuesMap.getOrDefault(PERCENT_TAX, Collections.emptyList())
-                .stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+    private void calculatePercentTax( BigDecimal itineraryTotal, TaxLadder taxLadder ) {
 
-        BigDecimal denominator = BigDecimal.ONE.add(percentTaxTotal.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP));
-        BigDecimal fraction = itinTpDeductedWithFlatTaxesAndPFC.divide(denominator, 4, RoundingMode.HALF_UP);
-        BigDecimal difference = itinTpDeductedWithFlatTaxesAndPFC.subtract(fraction);
+        BigDecimal netOfFlatTax = itineraryTotal.subtract( taxLadder.getTotalFlatTaxRate() );
 
-        // Round final result to 2 decimal places
-        percentTaxTotalAmount = difference.setScale(2, RoundingMode.HALF_UP);
-        return percentTaxTotalAmount;
+        for ( String taxCode : taxLadder.getPercentageTaxCodes()) {
+            BigDecimal percentTaxRate = taxLadder.getPercentageTaxRate(taxCode);
 
-    }
+            BigDecimal denominator = BigDecimal.ONE.add(percentTaxRate.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP));
+            BigDecimal fraction    = netOfFlatTax.divide(denominator, 4, RoundingMode.HALF_UP);
+            BigDecimal taxValue    = netOfFlatTax.subtract(fraction);
 
-    private void validateCalculatedTaxes(PEItinerary currentItin, BigDecimal currentItinTaxes, BigDecimal calculatedTaxesTotal, ArrayList<Taxes> taxes, BigDecimal pfcTaxes) {
-        boolean didCalculatedTaxesMatch = currentItinTaxes.subtract(calculatedTaxesTotal)
-                .compareTo(BigDecimal.valueOf(-1.00)) >= 0
-                && currentItinTaxes.subtract(calculatedTaxesTotal)
-                .compareTo(BigDecimal.valueOf(1.00)) <= 0;
-
-        if (!didCalculatedTaxesMatch) {
-            logRoute( currentItin );
-            log.info("Expected: " + currentItinTaxes + " Actual: " + calculatedTaxesTotal + " Diff: " + currentItinTaxes.subtract(calculatedTaxesTotal));
-
-            Map<String, String> sortedTaxLadderFromResponse = extractTaxLadderAsMap(taxes, pfcTaxes);
-            compareTaxLadders(currentItin, sortedTaxLadderFromResponse);
+            taxLadder.setPercentageTaxRate( taxCode, taxValue );
         }
     }
 
-    private void compareTaxLadders(PEItinerary currentItin, Map<String, String> sortedTaxLadderFromResponse) {
+    private void validateCalculatedTaxes(PEItinerary currentItin, TaxLadder taxLadder) {
+
+        BigDecimal itineraryTaxes = BigDecimal.valueOf( currentItin.getTaxes() );
+        BigDecimal totalTax = taxLadder.getTotalFlatTaxRate().add( taxLadder.getTotalPercentageTaxRate() );
+
+        BigDecimal taxDifference = itineraryTaxes.subtract(totalTax).abs();
+
+        boolean didCalculatedTaxesMatch = taxDifference.doubleValue() <= 1.0;
+
+        if (!didCalculatedTaxesMatch) {
+            logRoute( currentItin );
+            log.info("Expected: " + itineraryTaxes + " Actual: " + totalTax + " Diff: " + taxDifference );
+
+            compareTaxLadders(currentItin, taxLadder);
+        }
+    }
+
+    private void compareTaxLadders(PEItinerary currentItin, TaxLadder taxLadder ) {
         if (currentItin.getTaxLadder() == null || currentItin.getTaxLadder().isEmpty()) {
             log.error("currentItin.getTaxLadder() is null or empty. Cannot compare!");
             return;
         }
 
         Map<String, String> currentItinTaxLadderMap = new TreeMap<>();
-        for (String taxLadder : currentItin.getTaxLadder()) {
-            String[] parts = taxLadder.split(" ");
+        for (String taxCodeText : currentItin.getTaxLadder()) {
+            String[] parts = taxCodeText.split(" ");
             if (parts.length == 2) {
                 currentItinTaxLadderMap.put(parts[0], parts[1]);
             }
@@ -316,17 +338,18 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
 
 
         Set<String> taxKeys = new TreeSet<>(currentItinTaxLadderMap.keySet());
-        taxKeys.addAll(sortedTaxLadderFromResponse.keySet());
+        taxKeys.addAll(taxLadder.getFlatTaxCodes());
+        taxKeys.addAll(taxLadder.getPercentageTaxCodes());
 
         boolean mismatchFound = false;
         for (String taxKey : taxKeys) {
             String expectedValue = currentItinTaxLadderMap.get(taxKey);
-            String responseValue = sortedTaxLadderFromResponse.get(taxKey);
+            BigDecimal responseValue = taxLadder.getTaxRate(taxKey);
 
-            if ( expectedValue == null || !expectedValue.equals(responseValue)) {
+            if ( expectedValue == null || responseValue == null || Double.parseDouble(expectedValue) != responseValue.doubleValue()) {
                 String diff = "";
                 if (expectedValue != null && responseValue != null) {
-                    diff = String.format("%.2f", Double.parseDouble( expectedValue ) - Double.parseDouble( responseValue ));
+                    diff = String.format("%.2f", Double.parseDouble( expectedValue ) - responseValue.doubleValue());
                 }
                 log.error(String.format("%s: Expected: %6s Actual: %6s Diff: %6s", taxKey, expectedValue == null ? "------" : expectedValue, responseValue == null ? "------" : responseValue, diff));
                 mismatchFound = true;
