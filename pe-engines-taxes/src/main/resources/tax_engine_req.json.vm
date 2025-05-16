@@ -18,7 +18,6 @@
           "marketedFlightNo": ${leg.marketedFlightNo},
           "operatedCarrier": "$!{leg.operatedCarrier}",
           "operatedFlightNo": ${leg.operatedFlightNo},
-          "rbd": "",
           #if($leg.cabin && !$leg.cabin.isEmpty()) "cabin": "${leg.cabin}",#end
           "legIndicator": "F",
           "fareIndex": ${leg.fareIndex},
@@ -31,20 +30,14 @@
 
   "fares": [
     {
-      "fareBasisTicketDesignator": "",
-      "tariff": 0,
       "privateTariff": false,
-      "domesticFare": false,
       "fareOwningCarrier": "${ctx.fareOwningCarrier}",
       "tripType": "${ctx.tripType}",
     "fareAmount": #if(${ctx.tripType} == "ONE_WAY")100.00#{else}50.00#end,
       "fareCurrency": "${ctx.currency}"
     }#if(${ctx.tripType} == "ROUND_TRIP"),
       {
-        "fareBasisTicketDesignator": "",
-        "tariff": 0,
         "privateTariff": false,
-        "domesticFare": false,
         "fareOwningCarrier": "${ctx.fareOwningCarrier}",
         "tripType": "${ctx.tripType}",
         "fareAmount": 50.00,
