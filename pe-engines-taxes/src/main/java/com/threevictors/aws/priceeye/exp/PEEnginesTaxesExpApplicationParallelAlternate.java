@@ -204,6 +204,7 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
         validateCalculatedTaxes(currentItin, taxLadder );
     }
 
+
     private void processChargeDetails( List<Taxes> taxes, TaxLadder taxLadder ) {
 
         for (Taxes tax : taxes) {
@@ -214,14 +215,14 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
 
             for (ChargeDetail currentChargeDetail : chargeDetails) {
                 String mapKeyLookup = currentChargeDetail.getTaxKey() + "," + currentChargeDetail.getTaxSequenceNumber();
-                String percentOrFlatTag = Optional.ofNullable(x1TaxRecordDataPointsMap.get(mapKeyLookup))
-                        .map(X1TaxRecordDataPoints::getPercentOrFlatTag)
-                        .orElse(null);
+                X1TaxRecordDataPoints x1TaxRecordDataPoints = x1TaxRecordDataPointsMap.get(mapKeyLookup);
 
-                if (percentOrFlatTag == null) {
+                if ( x1TaxRecordDataPoints == null ) {
                     log.error("No data found for mapKeyLookup: " + mapKeyLookup);
                     continue;
                 }
+
+                String percentOrFlatTag = x1TaxRecordDataPoints.getPercentOrFlatTag();
 
                 String taxCode = currentChargeDetail.getTaxKey().split(",")[1];
 
@@ -231,17 +232,20 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                         break;
 
                     case PERCENT_TAX:
-                        if (currentChargeDetail.getChargeDescription() != null
-                                && (currentChargeDetail.getChargeDescription().contains("% of 100.00USD")
-                                        || currentChargeDetail.getChargeDescription().contains("% of 50.00USD")) ) {
-                            //TODO: For AS and HI it seems Engines uses a taxes rate sheet.
-                            //Now since US,US,012,305000 and US,US,012,295000 have a percent of 7.5 in the X1 tax record data points
-                            //But the Engine response has it as chargeDescription": "0.29% of 50.00USD"
-                            //Don't we need to take it from Charge description? Or are we banking on the fact that
-                            //fares total is 100 and 50 per leg, the responseCharge is reflective of the required percentage?
+                        if ( (currentChargeDetail.getResponseCharge().doubleValue() == x1TaxRecordDataPoints.getTaxPercent())
+                                ||
+                                ( currentChargeDetail.getChargeDescription() != null &&
+                                        (currentChargeDetail.getChargeDescription().contains("% of 100.00USD") ||
+                                                currentChargeDetail.getChargeDescription().contains("% of 50.00USD"))
+                                )
+                        ) {
+                            // For AS and HI based mkts, Engines use a tax rate sheet. The response charge is still treated as a percent value.
+                            // Note that it differs from the X1 tax record data points (e.g., 7.5%).
+                            // For example, for HI and AS mkts,  chargeDescription: "0.29% of 50.00USD" (RT per leg) or "0.29% of 100.00USD" (one way) will be showing up.
+                            // This assumes fares total 100 or 50 per leg, and the responseCharge reflects the required percentage.
                             taxLadder.addPercentageTaxRate(taxCode, currentChargeDetail.getResponseCharge());
                         }
-                        // Tax on Tax
+                        // Tax on Tax. so treat it as flat tax
                         else {
                             taxLadder.addFlatTaxRate(taxCode, currentChargeDetail.getResponseCharge());
                         }
