@@ -231,7 +231,14 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                         break;
 
                     case PERCENT_TAX:
-                        if (currentChargeDetail.getChargeDescription() != null && currentChargeDetail.getChargeDescription().contains("% of 100.00USD")) {
+                        if (currentChargeDetail.getChargeDescription() != null
+                                && (currentChargeDetail.getChargeDescription().contains("% of 100.00USD")
+                                        || currentChargeDetail.getChargeDescription().contains("% of 50.00USD")) ) {
+                            //TODO: For AS and HI it seems Engines uses a taxes rate sheet.
+                            //Now since US,US,012,305000 and US,US,012,295000 have a percent of 7.5 in the X1 tax record data points
+                            //But the Engine response has it as chargeDescription": "0.29% of 50.00USD"
+                            //Don't we need to take it from Charge description? Or are we banking on the fact that
+                            //fares total is 100 and 50 per leg, the responseCharge is reflective of the required percentage?
                             taxLadder.addPercentageTaxRate(taxCode, currentChargeDetail.getResponseCharge());
                         }
                         // Tax on Tax
