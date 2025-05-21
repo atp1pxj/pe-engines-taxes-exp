@@ -85,7 +85,6 @@ public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEng
 
         List<TaxLegVelocityData> legs = new ArrayList<>();
 
-        //for (RawLeg leg : peItinerary.getOutboundLegs()) {
         for (int i = 0; i < peItinerary.getOutboundLegs().size(); i++) {
             RawLeg leg = peItinerary.getOutboundLegs().get(i);
             TaxLegVelocityData legData = buildLegData(leg, i == peItinerary.getOutboundLegs().size() - 1);
@@ -95,7 +94,6 @@ public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEng
             legs.add(legData);
         }
 
-       // for (RawLeg leg : peItinerary.getInboundLegs()) {
         for (int i = 0; i < peItinerary.getInboundLegs().size(); i++) {
             RawLeg leg = peItinerary.getInboundLegs().get(i);
 
@@ -114,9 +112,15 @@ public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEng
         //TODO: What field on the PEItinerary is the TripType? Not able to find it on the legs either
         ctx.setTripType("ROUND_TRIP");
         ctx.setFareOwningCarrier(peItinerary.getOutboundLegs().get(0).getMarketingCarrier());
+
         //TODO: What field on the PEItinerary is the ticketDate? Not able to find it on the legs either. Should it be today's date?
-        //Setting ticketDate to today's date in format yyMMdd
-        ctx.setTicketDate(LocalDate.now().format(DateTimeFormatter.ofPattern("yyMMdd")));
+        //TicketDate should be in format yyMMdd. Set to today's date.
+        //ctx.setTicketDate(LocalDate.now().format(DateTimeFormatter.ofPattern("yyMMdd")));
+
+        //TicketDate should be in format yyMMdd. Set to the date when the stubbed itin data was created.
+        //Note that this value is obtained from the runtime argument of the main method, which is set on the duration field
+        //in the PEItinerary class as there is no other int field to hold the value.
+        ctx.setTicketDate(String.valueOf(peItinerary.getDuration()));
 
         ctx.setValidatingCarrier(peItinerary.getOutboundLegs().get(0).getMarketingCarrier());
         ctx.setCurrency(peItinerary.getCurrency());

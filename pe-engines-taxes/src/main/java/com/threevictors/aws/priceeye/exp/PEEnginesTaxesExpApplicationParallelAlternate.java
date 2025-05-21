@@ -108,9 +108,7 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
         }//end of for loop on THREAD_COUNT
     }
 
-
-
-    private void readSourceFile(File source, int specificLineNumber) {
+    private void readSourceFile(File source, int specificLineNumber, String ticketDate) {
         //Read the CSV directly and put it into the queue
         try (CSVReader reader = new CSVReader(new FileReader(source))) {
             String line[];
@@ -127,7 +125,9 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                 lineList.add(String.valueOf(lineNumber));
 
                 PEItinerary itinerary = PEItinerariesLoader.parsePEItineraryLine(lineList);
-                    queue.put( itinerary );
+                //Set the ticket date on the itinerary object. Assign it to the duration field for the time being.
+                itinerary.setDuration(Integer.parseInt(ticketDate));
+                queue.put( itinerary );
             }
 
             // Signal EOF to workers
@@ -153,18 +153,34 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
 
     public static void main(String[] args) throws Exception {
 
-        int lineNumber = -1;
-
-        if (args.length > 0) {
-            lineNumber = Integer.parseInt(args[0]);
+        if (args.length < 1) {
+            throw new IllegalArgumentException("Mandatory argument 'ticketDate' is missing. Format: yyMMdd");
         }
+
+        String ticketDate = args[0];
+        if (!ticketDate.matches("\\d{6}")) {
+            throw new IllegalArgumentException("Invalid 'ticketDate' format. Expected format: yyMMdd");
+        }
+
+        int lineNumber = -1; // Default value for optional argument
+        if (args.length > 1) {
+            try {
+                lineNumber = Integer.parseInt(args[1]);
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("Optional argument 'lineNumber' must be an integer.");
+            }
+        }
+
+        // Log the arguments for verification
+        log.info("Ticket Date: " + ticketDate);
+        log.info("Line Number: " + (lineNumber == -1 ? "Not provided" : lineNumber));
 
         PEEnginesTaxesExpApplicationParallelAlternate currentApp = new PEEnginesTaxesExpApplicationParallelAlternate();
 
         File source = new File("pe-engines-taxes/src/main/resources/PEItineraries_from_athena_csv_parallel/generated_output_txts/PEItins_parallel_unique_output.txt");
 
         currentApp.startWorkerThreads();
-        currentApp.readSourceFile(source, lineNumber);
+        currentApp.readSourceFile(source, lineNumber, ticketDate);
         currentApp.await();
 
         log.info("✅ Processing complete.");
@@ -292,22 +308,6 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
 
         AtomicReference<BigDecimal> pfcTaxes = new AtomicReference<>(BigDecimal.ZERO);
 
-        /*currentItin.getOutboundLegs().stream()
-                .filter(leg -> pfcTaxMap.containsKey(leg.getOriginAirportCode()))
-                .forEach(leg -> {
-                    //BigDecimal taxAmount = "ANC".equals(leg.getOriginAirportCode()) ? BigDecimal.valueOf(3.00) : BigDecimal.valueOf(4.50);
-                    BigDecimal taxAmount = BigDecimal.valueOf(pfcTaxMap.get(leg.getOriginAirportCode()));
-                    pfcTaxes.set(pfcTaxes.get().add(taxAmount));
-                });
-
-        currentItin.getInboundLegs().stream()
-                .filter(leg -> pfcTaxMap.containsKey(leg.getOriginAirportCode()))
-                .forEach(leg -> {
-                    BigDecimal taxAmount = BigDecimal.valueOf(pfcTaxMap.get(leg.getOriginAirportCode()));
-                    pfcTaxes.set(pfcTaxes.get().add(taxAmount));
-                });*/
-
-
         RootPFCResponse rootPFCResponse = pfcTaxEngineCommunicator.sendRequest(currentItin);
 
         if (rootPFCResponse != null && rootPFCResponse.getPfcResponse() != null
@@ -321,10 +321,11 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
             });
         }
         else {
-            log.error("Null rootPFCResponse for itinerary: " + currentItin);
+            log.warn("Null or Empty PFC Response for itinerary: PFC - " + logRoute(currentItin));
         }
         return pfcTaxes.get();
     }
+
 
     private void calculatePercentTax( BigDecimal itineraryTotal, TaxLadder taxLadder ) {
 
@@ -351,7 +352,7 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
         boolean didCalculatedTaxesMatch = taxDifference.doubleValue() <= 1.0;
 
         if (!didCalculatedTaxesMatch) {
-            logRoute( currentItin );
+            log.info(logRoute( currentItin ));
             log.info("Expected: " + itineraryTaxes + " Actual: " + totalTax + " Diff: " + taxDifference );
 
             compareTaxLadders(currentItin, taxLadder);
@@ -402,7 +403,7 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
     }
 
 
-    private void logRoute( PEItinerary currentItin ) {
+    private String logRoute( PEItinerary currentItin ) {
         StringBuilder route = new StringBuilder();
 
         for (RawLeg leg : currentItin.getOutboundLegs()) {
@@ -439,8 +440,7 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
             }
         }
 
-        log.info("Route: " + route + " $" + currentItin.getTotalPrice() +  " LN: " + currentItin.getChannel());
-
+        return ("Route: " + route + " $" + currentItin.getTotalPrice() +  " LN: " + currentItin.getChannel());
     }
 
 
