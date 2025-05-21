@@ -1,6 +1,6 @@
 package com.threevictors.aws.priceeye.exp.loader;
 
-import com.threevictors.aws.priceeye.exp.model.X1TaxRecordDataPoints;
+import com.threevictors.aws.priceeye.exp.model.taxengine.response.X1TaxRecordDataPoints;
 import lombok.Data;
 
 import java.util.HashMap;

@@ -7,10 +7,9 @@ import com.threevictors.aws.data.aws.RawLeg;
 import com.threevictors.aws.data.priceeye.PEItinerary;
 import com.threevictors.aws.priceeye.exp.dao.MetadataReader;
 import com.threevictors.aws.priceeye.exp.loader.PEItinerariesLoader;
-import com.threevictors.aws.priceeye.exp.loader.PEItinsFromCSVLoader;
 import com.threevictors.aws.priceeye.exp.loader.UniqueMktsPEItinsLoader;
 import com.threevictors.aws.priceeye.exp.loader.X1TaxRecordDataPointsLoader;
-import com.threevictors.aws.priceeye.exp.model.*;
+import com.threevictors.aws.priceeye.exp.model.taxengine.response.*;
 import com.threevictors.aws.priceeye.exp.velocity.builder.TaxEngineRequestBuilder;
 import org.apache.http.client.utils.URIBuilder;
 

@@ -3,12 +3,15 @@ package com.threevictors.aws.priceeye.exp;
 import com.opencsv.CSVReader;
 import com.threevictors.aws.data.aws.RawLeg;
 import com.threevictors.aws.data.priceeye.PEItinerary;
-import com.threevictors.aws.priceeye.exp.dao.MetadataReader;
 import com.threevictors.aws.priceeye.exp.loader.PEItinerariesLoader;
+import com.threevictors.aws.priceeye.exp.loader.PFCAmountsLoader;
 import com.threevictors.aws.priceeye.exp.loader.X1TaxRecordDataPointsLoader;
-import com.threevictors.aws.priceeye.exp.model.*;
 import com.threevictors.aws.priceeye.exp.data.*;
 
+import com.threevictors.aws.priceeye.exp.model.pfcengine.response.Charge;
+import com.threevictors.aws.priceeye.exp.model.pfcengine.response.RootPFCResponse;
+import com.threevictors.aws.priceeye.exp.model.taxengine.response.*;
+import com.threevictors.aws.priceeye.exp.taxengine.PFCTaxEngineCommunicator;
 import com.threevictors.aws.priceeye.exp.taxengine.TaxEngineCommunicator;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -35,13 +38,16 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
     private static final int THREAD_COUNT = Runtime.getRuntime().availableProcessors();
 
     private Map<String, X1TaxRecordDataPoints> x1TaxRecordDataPointsMap;
-    private Map<String, String> airportCountryCodeMap;
+
+    //TODO: this might not be needed.
+    private Map<String, Double> pfcTaxMap;
 
     private BlockingQueue<PEItinerary> queue;
     private ExecutorService executor;
     private CountDownLatch latch;
 
     private TaxEngineCommunicator taxEngineCommunicator;
+    private PFCTaxEngineCommunicator pfcTaxEngineCommunicator;
 
 
     public PEEnginesTaxesExpApplicationParallelAlternate() {
@@ -50,19 +56,23 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
         latch = new CountDownLatch(THREAD_COUNT);
 
         taxEngineCommunicator = new TaxEngineCommunicator();
+        pfcTaxEngineCommunicator = new PFCTaxEngineCommunicator();
 
         X1TaxRecordDataPointsLoader x1TaxRecordDataPointsLoader = new X1TaxRecordDataPointsLoader();
+        log.info("Loading X1 tax record data points from redis dump file...");
+        long startTime = System.currentTimeMillis();
         x1TaxRecordDataPointsMap = Collections.unmodifiableMap(
                 x1TaxRecordDataPointsLoader.loadTaxRecordDataPoints("pe-engines-taxes/src/main/resources/xldatapoints_all_taxrecs_from_redis_all_20250515.txt")
         );
+        log.info("DONE Loading X1 tax record data points from redis dump file. Time taken: " + (System.currentTimeMillis() - startTime) + " ms");
 
-        //Load the airport country code map
-        MetadataReader metadataReader = new MetadataReader();
-
-        //Loads airports from US, Puerto Rico (PR) and Virgin Islands (VI) only.
-        airportCountryCodeMap = Collections.unmodifiableMap(
-                metadataReader.getAirportCountryMapUSDomesticOnly()
+        //TODO: this would not be needed
+        log.info("Loading PFC tax record data points from redis dump file...");
+        startTime = System.currentTimeMillis();
+        pfcTaxMap = Collections.unmodifiableMap(
+                PFCAmountsLoader.parseAndLoadPFCTaxesRedisData("pe-engines-taxes/src/main/resources/pfcRedisDump_20250520.txt")
         );
+        log.info("DONE Loading PFC tax record data points from redis dump file. Time taken: " + (System.currentTimeMillis() - startTime) + " ms");
     }
 
     private void startWorkerThreads() {
@@ -279,22 +289,40 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
     }
 
     private BigDecimal calculatePFCTaxes(PEItinerary currentItin) {
+
         AtomicReference<BigDecimal> pfcTaxes = new AtomicReference<>(BigDecimal.ZERO);
 
-        currentItin.getOutboundLegs().stream()
-                .filter(leg -> airportCountryCodeMap.containsKey(leg.getOriginAirportCode()))
+        /*currentItin.getOutboundLegs().stream()
+                .filter(leg -> pfcTaxMap.containsKey(leg.getOriginAirportCode()))
                 .forEach(leg -> {
-                    BigDecimal taxAmount = "ANC".equals(leg.getOriginAirportCode()) ? BigDecimal.valueOf(3.00) : BigDecimal.valueOf(4.50);
+                    //BigDecimal taxAmount = "ANC".equals(leg.getOriginAirportCode()) ? BigDecimal.valueOf(3.00) : BigDecimal.valueOf(4.50);
+                    BigDecimal taxAmount = BigDecimal.valueOf(pfcTaxMap.get(leg.getOriginAirportCode()));
                     pfcTaxes.set(pfcTaxes.get().add(taxAmount));
                 });
 
         currentItin.getInboundLegs().stream()
-                .filter(leg -> airportCountryCodeMap.containsKey(leg.getOriginAirportCode()))
+                .filter(leg -> pfcTaxMap.containsKey(leg.getOriginAirportCode()))
                 .forEach(leg -> {
-                    BigDecimal taxAmount = "ANC".equals(leg.getOriginAirportCode()) ? BigDecimal.valueOf(3.00) : BigDecimal.valueOf(4.50);
+                    BigDecimal taxAmount = BigDecimal.valueOf(pfcTaxMap.get(leg.getOriginAirportCode()));
                     pfcTaxes.set(pfcTaxes.get().add(taxAmount));
-                });
+                });*/
 
+
+        RootPFCResponse rootPFCResponse = pfcTaxEngineCommunicator.sendRequest(currentItin);
+
+        if (rootPFCResponse != null && rootPFCResponse.getPfcResponse() != null
+                && rootPFCResponse.getPfcResponse().getCharges() != null
+                && !rootPFCResponse.getPfcResponse().getCharges().isEmpty()) {
+            // retrieve PFC taxes from the response and add them to the total
+            List<Charge> pfcCharges = rootPFCResponse.getPfcResponse().getCharges();
+            pfcCharges.forEach(airportPfcCharge -> {
+                BigDecimal taxAmount = BigDecimal.valueOf(airportPfcCharge.getCharge());
+                pfcTaxes.set(pfcTaxes.get().add(taxAmount));
+            });
+        }
+        else {
+            log.error("Null rootPFCResponse for itinerary: " + currentItin);
+        }
         return pfcTaxes.get();
     }
 

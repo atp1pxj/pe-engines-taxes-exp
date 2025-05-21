@@ -3,7 +3,9 @@ package com.threevictors.aws.priceeye.exp.taxengine;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.threevictors.aws.data.priceeye.PEItinerary;
+import com.threevictors.aws.priceeye.exp.model.pfcengine.response.RootPFCResponse;
 import com.threevictors.aws.priceeye.exp.model.taxengine.response.RootResponse;
+import com.threevictors.aws.priceeye.exp.velocity.builder.PFCEngineRequestBuilder;
 import com.threevictors.aws.priceeye.exp.velocity.builder.TaxEngineRequestBuilder;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -17,22 +19,24 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 
-public class TaxEngineCommunicator {
+//TODO: Refactor this class and the TaxEngineCommunicator class to streamline the code and remove redundancy.
+public class PFCTaxEngineCommunicator {
 
-    private final static Log log = LogFactory.getLog(TaxEngineCommunicator.class);
+    private final static Log log = LogFactory.getLog(PFCTaxEngineCommunicator.class);
 
-    private final static String URI = "http://tax-sfe-service.engines-stg.use1.atpco.local/tax";
+    private final static String URI = "http://tax-sfe-service.engines-stg.use1.atpco.local/pfcEngine";
     private HttpClient httpClient;
-    private TaxEngineRequestBuilder taxEngineRequestBuilder;
+
+    private PFCEngineRequestBuilder pfcEngineRequestBuilder;
     private Gson gson;
 
-    public TaxEngineCommunicator() {
+    public PFCTaxEngineCommunicator() {
         System.setProperty("jdk.httpclient.connectionPoolSize", String.valueOf(20));
         System.setProperty("jdk.httpclient.keepalive.timeout", "30");
 
         httpClient = HttpClient.newBuilder().connectTimeout(Duration.of(30, ChronoUnit.SECONDS)).build();
 
-        taxEngineRequestBuilder = new TaxEngineRequestBuilder();
+        pfcEngineRequestBuilder = new PFCEngineRequestBuilder();
 
         gson = new GsonBuilder()
                 .setDateFormat("yyMMdd HH:mm")
@@ -40,8 +44,8 @@ public class TaxEngineCommunicator {
     }
 
 
-    public RootResponse sendRequest(PEItinerary itinerary ) {
-        String request = taxEngineRequestBuilder.buildRequest( itinerary );
+    public RootPFCResponse sendRequest(PEItinerary itinerary ) {
+        String request = pfcEngineRequestBuilder.buildRequest( itinerary );
 
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder();
         requestBuilder.setHeader("Content-Type", "application/json");
@@ -52,7 +56,7 @@ public class TaxEngineCommunicator {
             requestBuilder.uri(new URI(URI));
         }
         catch (URISyntaxException use) {
-            log.error("Error creating URI for TaxEngineCommunicator: " + use.getMessage());
+            log.error("Error creating URI for PFCTaxEngineCommunicator: " + use.getMessage());
             return null;
         }
 
@@ -63,10 +67,10 @@ public class TaxEngineCommunicator {
         try {
             HttpResponse<String> httpResponse = httpClient.send( httpRequest, HttpResponse.BodyHandlers.ofString());
 
-            return gson.fromJson(httpResponse.body(), RootResponse.class);
+            return gson.fromJson(httpResponse.body(), RootPFCResponse.class);
         }
         catch (IOException|InterruptedException e) {
-            log.error("Failed to send request to TaxEngineCommunicator: " + e.getMessage(), e);
+            log.error("Failed to send request to PFCTaxEngineCommunicator: " + e.getMessage(), e);
             return null;
         }
     }

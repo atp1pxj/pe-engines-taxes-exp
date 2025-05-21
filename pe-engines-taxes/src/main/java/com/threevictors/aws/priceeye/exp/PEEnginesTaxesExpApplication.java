@@ -12,14 +12,8 @@ import com.threevictors.aws.priceeye.exp.dao.MetadataReader;
 import com.threevictors.aws.priceeye.exp.loader.PEItinerariesLoader;
 import com.threevictors.aws.priceeye.exp.loader.PEItinsFromCSVLoader;
 import com.threevictors.aws.priceeye.exp.loader.X1TaxRecordDataPointsLoader;
-import com.threevictors.aws.priceeye.exp.model.*;
+import com.threevictors.aws.priceeye.exp.model.taxengine.response.*;
 import com.threevictors.aws.priceeye.exp.velocity.builder.TaxEngineRequestBuilder;
-import net.atpco.ash.enums.LegIndicatorType;
-import net.atpco.engine.common.types.TransferType;
-import net.atpco.fare.domain.types.TripType;
-import net.atpco.service.fee.client.request.TaxServiceFeeQuery;
-import net.atpco.service.fee.client.request.TaxItinerary;
-import net.atpco.service.fee.client.request.FareInfo;
 
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
@@ -33,12 +27,9 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 //import java.time.LocalDateRange;
-import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 
-import net.atpco.ash.location.vo.*;
-import net.atpco.service.fee.client.request.TaxServiceFeeLeg;
 import org.apache.http.client.utils.URIBuilder;
 
 //Worked when I used snapshot

@@ -1,4 +1,4 @@
-package com.threevictors.aws.priceeye.exp.model;
+package com.threevictors.aws.priceeye.exp.model.taxengine.response;
 
 import lombok.Data;
 
