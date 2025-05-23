@@ -50,6 +50,24 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
     private PFCTaxEngineCommunicator pfcTaxEngineCommunicator;
 
 
+    //TODO: Temp added for testing. Original list of mismatched line numbers is commented out.
+    List<Integer> misMatchTaxLineNumbers = Arrays.asList(
+           838, 2368, 2492, 3158, 3189, 3195, 3880, 4188, 4253, 4255, 4268,
+    4751, 4782, 4928, 5217, 5320, 5579, 5750, 6012, 6230, 6325, 6609,
+    6615, 6618, 6642
+    );
+
+
+    //Temp for testing only the specific mismatched line numbers
+    /*List<Integer> misMatchTaxLineNumbers = Arrays.asList(
+            //222
+            //877
+            1040
+    );*/
+
+    //single line run
+    //List<Integer> misMatchTaxLineNumbers = new ArrayList<>();
+
     public PEEnginesTaxesExpApplicationParallelAlternate() {
         queue = new LinkedBlockingQueue<>(QUEUE_CAPACITY);
         executor = Executors.newFixedThreadPool(THREAD_COUNT);
@@ -108,7 +126,9 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
         }//end of for loop on THREAD_COUNT
     }
 
-    private void readSourceFile(File source, int specificLineNumber, String ticketDate) {
+
+    //TODO: Original - don't delete
+    /*private void readSourceFile(File source, int specificLineNumber, String ticketDate) {
         //Read the CSV directly and put it into the queue
         try (CSVReader reader = new CSVReader(new FileReader(source))) {
             String line[];
@@ -139,6 +159,40 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
             log.error("Error reading source file", e);
         }
 
+    }*/
+
+
+    //Send only the list of mismatched line numbers to the readSourceFile method
+    private void readSourceFile(File source, String ticketDate) {
+        // Read the CSV directly and put it into the queue
+        try (CSVReader reader = new CSVReader(new FileReader(source))) {
+            String[] line;
+            int lineNumber = 0;
+
+            while ((line = reader.readNext()) != null) {
+                lineNumber++;
+
+                // Skip lines not in the mismatch list
+                if (!misMatchTaxLineNumbers.contains(lineNumber)) {
+                    continue;
+                }
+
+                List<String> lineList = new ArrayList<>(Arrays.asList(line));
+                lineList.add(String.valueOf(lineNumber));
+
+                PEItinerary itinerary = PEItinerariesLoader.parsePEItineraryLine(lineList);
+                // Set the ticket date on the itinerary object. Assign it to the duration field for the time being.
+                itinerary.setDuration(Integer.parseInt(ticketDate));
+                queue.put(itinerary);
+            }
+
+            // Signal EOF to workers
+            for (int i = 0; i < THREAD_COUNT; i++) {
+                queue.put(new PEItinerary());
+            }
+        } catch (Exception e) {
+            log.error("Error reading source file", e);
+        }
     }
 
 
@@ -180,7 +234,8 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
         File source = new File("pe-engines-taxes/src/main/resources/PEItineraries_from_athena_csv_parallel/generated_output_txts/PEItins_parallel_unique_output.txt");
 
         currentApp.startWorkerThreads();
-        currentApp.readSourceFile(source, lineNumber, ticketDate);
+        //currentApp.readSourceFile(source, lineNumber, ticketDate);
+        currentApp.readSourceFile(source, ticketDate);
         currentApp.await();
 
         log.info("✅ Processing complete.");
@@ -321,7 +376,7 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
             });
         }
         else {
-            log.warn("Null or Empty PFC Response for itinerary: PFC - " + logRoute(currentItin));
+            log.warn("Null or Empty PFC Response for itinerary: PFC-" + logRoute(currentItin));
         }
         return pfcTaxes.get();
     }

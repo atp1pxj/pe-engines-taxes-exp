@@ -27,7 +27,6 @@
       #end
     ]
   },
-
   "fares": [
     {
       "privateTariff": false,

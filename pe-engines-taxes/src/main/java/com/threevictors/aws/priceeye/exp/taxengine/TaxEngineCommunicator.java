@@ -41,7 +41,9 @@ public class TaxEngineCommunicator {
 
 
     public RootResponse sendRequest(PEItinerary itinerary ) {
+
         String request = taxEngineRequestBuilder.buildRequest( itinerary );
+        //log.info("LN: " + itinerary.getChannel() + " JSON Request to taxengines: " + request);
 
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder();
         requestBuilder.setHeader("Content-Type", "application/json");
