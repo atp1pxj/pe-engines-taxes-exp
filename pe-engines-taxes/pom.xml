@@ -18,7 +18,8 @@
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <version.priceeyev2>0.113</version.priceeyev2>
+        <!--<version.priceeyev2>0.113</version.priceeyev2>-->
+        <version.priceeyev2>0.121-SNAPSHOT</version.priceeyev2>
 
         <!-- greater than version 3.1 maven required -->
         <version.plugin.enforcer>3.4.1</version.plugin.enforcer>
@@ -356,6 +357,13 @@
         <dependency>
             <groupId>com.threevictors.aws.priceeye</groupId>
             <artifactId>threevictors-priceeye-data</artifactId>
+            <version>${version.priceeyev2}</version>
+        </dependency>
+
+        <!-- Add threevictors-priceeye-common dependency -->
+        <dependency>
+            <groupId>com.threevictors.aws.priceeye</groupId>
+            <artifactId>threevictors-priceeye-common</artifactId>
             <version>${version.priceeyev2}</version>
         </dependency>
 

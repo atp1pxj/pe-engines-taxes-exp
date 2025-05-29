@@ -2,6 +2,8 @@ package com.threevictors.aws.priceeye.exp.velocity.builder;
 
 import com.threevictors.aws.data.aws.RawLeg;
 import com.threevictors.aws.data.priceeye.*;
+import com.threevictors.aws.data.wtf.SkinnyCacheFlightRecord;
+import com.threevictors.aws.priceeye.common.PEOagRecordCache2;
 import com.threevictors.aws.priceeye.exp.velocity.data.TaxEngineReqVelocityData;
 import com.threevictors.aws.priceeye.exp.velocity.data.TaxLegVelocityData;
 import lombok.Data;
@@ -16,9 +18,12 @@ import java.util.Map;
 @Data
 public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEngineReqVelocityData> {
 
+    private PEOagRecordCache2 oagRecordCache2;
 
     public TaxEngineRequestBuilder() {
         super();
+        oagRecordCache2 = new PEOagRecordCache2(1000); // Initialize with a cache size of 1000
+        oagRecordCache2.initialize();
     }
 
     @Override
@@ -54,13 +59,24 @@ public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEng
         legData.setDestinationCode(leg.getDestinationAirportCode());
         legData.setMarketedCarrier(leg.getMarketingCarrier());
         legData.setMarketedFlightNo(leg.getFlightNumber());
-        legData.setOperatedFlightNo(legData.getMarketedFlightNo());
 
-        if ( legData.getOperatedCarrier() == null || legData.getOperatedCarrier().isEmpty() ) {
-            legData.setOperatedCarrier(legData.getMarketedCarrier());
+        //String originAirportCode, String destinationAirportCode, String carrierCode, int flightNumber, int travelDate
+        SkinnyCacheFlightRecord skinnyCacheFlightRecord = oagRecordCache2.getApplicableFlightRecord(legData.getOriginCode(),
+                legData.getDestinationCode(),
+                legData.getMarketedCarrier(),
+                legData.getMarketedFlightNo(),
+                leg.getDepartDate()); // Note: travelDate is the depart date in the RawLeg and is sent as 20250522 instead of 250522
+
+        /* IMPORTANT NOTE: If the skinnyCacheFlightRecord is null, default the operating carrier to "" and operatingFlight number to 0 as this will give the SAME responses as
+           passing correct values for operating carrier and flight number.
+        * DON'T default to marketedcarrier and marketedFlight number as it is INCORRECT. Will result in erroneous tax values. This has been verified through postman*/
+        if (skinnyCacheFlightRecord == null) {
+            legData.setOperatedCarrier("");
+            legData.setOperatedFlightNo(0);
         }
         else {
-            legData.setOperatedCarrier(leg.getOperatingCarrier());
+            legData.setOperatedFlightNo(skinnyCacheFlightRecord.getOperatingCarrierFlightNumber());
+            legData.setOperatedCarrier(skinnyCacheFlightRecord.getOperatingCarrierCode() != null ? skinnyCacheFlightRecord.getOperatingCarrierCode() : "");
         }
 
         if (lastLeg) {
