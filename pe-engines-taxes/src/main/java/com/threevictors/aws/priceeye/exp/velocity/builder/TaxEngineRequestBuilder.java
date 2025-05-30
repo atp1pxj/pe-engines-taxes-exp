@@ -76,7 +76,7 @@ public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEng
         }
         else {
             legData.setOperatedFlightNo(skinnyCacheFlightRecord.getOperatingCarrierFlightNumber());
-            legData.setOperatedCarrier(skinnyCacheFlightRecord.getOperatingCarrierCode() != null ? skinnyCacheFlightRecord.getOperatingCarrierCode() : "");
+            legData.setOperatedCarrier(skinnyCacheFlightRecord.getDuplicateCarrier1() != null ? skinnyCacheFlightRecord.getDuplicateCarrier1() : "");
         }
 
         if (lastLeg) {

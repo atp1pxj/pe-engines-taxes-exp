@@ -50,20 +50,18 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
     private PFCTaxEngineCommunicator pfcTaxEngineCommunicator;
 
 
-    //TODO: Temp added for testing. Original list of mismatched line numbers is commented out.
-    List<Integer> misMatchTaxLineNumbers = Arrays.asList(
+    //previously mismatched tax line numbers 25 values
+    /*List<Integer> misMatchTaxLineNumbers = Arrays.asList(
            838, 2368, 2492, 3158, 3189, 3195, 3880, 4188, 4253, 4255, 4268,
     4751, 4782, 4928, 5217, 5320, 5579, 5750, 6012, 6230, 6325, 6609,
     6615, 6618, 6642
-    );
-
-
-    //Temp for testing only the specific mismatched line numbers
-    /*List<Integer> misMatchTaxLineNumbers = Arrays.asList(
-            //222
-            //877
-            1040
     );*/
+
+    //Currently mismatched tax line numbers for WG, WY
+    List<Integer> misMatchTaxLineNumbers = Arrays.asList(
+      //6325 - not a mismatch anymore after the fix for operating carrier and flight number
+            3189, 5750
+    );
 
     //single line run
     //List<Integer> misMatchTaxLineNumbers = new ArrayList<>();
@@ -91,6 +89,9 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                 PFCAmountsLoader.parseAndLoadPFCTaxesRedisData("pe-engines-taxes/src/main/resources/pfcRedisDump_20250520.txt")
         );
         log.info("DONE Loading PFC tax record data points from redis dump file. Time taken: " + (System.currentTimeMillis() - startTime) + " ms");
+
+
+
     }
 
     private void startWorkerThreads() {
