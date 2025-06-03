@@ -50,6 +50,12 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
     private PFCTaxEngineCommunicator pfcTaxEngineCommunicator;
 
 
+    //25 values - previously mismatched tax line numbers
+    /*List<Integer> misMatchTaxLineNumbers = Arrays.asList(
+           838, 2368, 2492, 3158, 3189, 3195, 3880, 4188, 4253, 4255, 4268,
+    4751, 4782, 4928, 5217, 5320, 5579, 5750, 6012, 6230, 6325, 6609,
+    6615, 6618, 6642
+    );*/
 
     //19 values - After WG, WY fix, the count got reduced to 19.
     // values resolved (5) are 838, 3158, 4188, 4253, 5320, 6325
@@ -57,6 +63,38 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
             2368, 2492, 3189, 3195, 3880, 4255, 4268, 4751, 4782,
             4928, 5217, 5579, 5750, 6012, 6230, 6609, 6615, 6618, 6642
     );*/
+
+    //Currently mismatched tax line numbers for WG, WY. Sent to Sarvesh
+   /* List<Integer> misMatchTaxLineNumbers = Arrays.asList(
+      //6325 - not a mismatch anymore after the fix for operating carrier and flight number
+            // WG and WY issue LN numbers
+            //3189, 5750
+    );*/
+
+    //Sandbox List to try each request individually
+    List<Integer> misMatchTaxLineNumbers = Arrays.asList(
+            //2368,
+   //         2492,
+ //           3189,
+//           3195,
+            //3880,
+            //4255,
+           // 4268,
+            // 4751,
+            //4782,
+            //4928,
+            //5217,
+            //5579,
+            //5750,
+            //6012,
+            //6230,
+            //6609,
+            //6615,
+            //6618,
+            //6642
+    );
+
+
 
 
     //single line run
@@ -85,8 +123,10 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                 PFCAmountsLoader.parseAndLoadPFCTaxesRedisData("pe-engines-taxes/src/main/resources/pfcRedisDump_20250520.txt")
         );
         log.info("DONE Loading PFC tax record data points from redis dump file. Time taken: " + (System.currentTimeMillis() - startTime) + " ms");
-    }
 
+
+
+    }
 
     private void startWorkerThreads() {
         // Start worker threads
@@ -122,8 +162,8 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
     }
 
 
-    //Note: Original - don't delete
-    private void readSourceFile(File source, int specificLineNumber, String ticketDate) {
+    //TODO: Original - don't delete
+    /*private void readSourceFile(File source, int specificLineNumber, String ticketDate) {
         //Read the CSV directly and put it into the queue
         try (CSVReader reader = new CSVReader(new FileReader(source))) {
             String line[];
@@ -139,16 +179,7 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                 List<String> lineList = new ArrayList<>(Arrays.asList(line));
                 lineList.add(String.valueOf(lineNumber));
 
-                //TODO: Need to refactor all this later to have a single method to parse itineraries (non-stop and with connections).
-                
-                //Note: Original with non-stops. Don't delete
-                //non-stop itineraries only
-                //PEItinerary itinerary = PEItinerariesLoader.parsePEItineraryLineNonStop(lineList);
-
-                //Itineraries with connections
-                PEItinerary itinerary = PEItinerariesLoader.parsePEItineraryLineWithConnections(lineList);
-
-
+                PEItinerary itinerary = PEItinerariesLoader.parsePEItineraryLine(lineList);
                 //Set the ticket date on the itinerary object. Assign it to the duration field for the time being.
                 itinerary.setDuration(Integer.parseInt(ticketDate));
                 queue.put( itinerary );
@@ -163,12 +194,11 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
             log.error("Error reading source file", e);
         }
 
-    }
+    }*/
 
 
-    //TODO: Uncomment this only when misMatchTaxLineNumbers is used.
     //Send only the list of mismatched line numbers to the readSourceFile method
-    /*private void readSourceFile(File source, String ticketDate) {
+    private void readSourceFile(File source, String ticketDate) {
         // Read the CSV directly and put it into the queue
         try (CSVReader reader = new CSVReader(new FileReader(source))) {
             String[] line;
@@ -198,7 +228,7 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
         } catch (Exception e) {
             log.error("Error reading source file", e);
         }
-    }*/
+    }
 
 
     private void await()  {
@@ -236,16 +266,11 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
 
         PEEnginesTaxesExpApplicationParallelAlternate currentApp = new PEEnginesTaxesExpApplicationParallelAlternate();
 
-        // Source file path with non-stop itineraries
-        //File source = new File("pe-engines-taxes/src/main/resources/PEItineraries_from_athena_csv_parallel/generated_output_txts/PEItins_parallel_unique_output.txt");
-
-        // Source file path with connecting itineraries
-        File source = new File("pe-engines-taxes/src/main/resources/PEItineraries_from_athena_csv_parallel/generated_output_txts/PEItins_parallel_unique_output_conns.txt");
+        File source = new File("pe-engines-taxes/src/main/resources/PEItineraries_from_athena_csv_parallel/generated_output_txts/PEItins_parallel_unique_output.txt");
 
         currentApp.startWorkerThreads();
-        currentApp.readSourceFile(source, lineNumber, ticketDate);
-        //Uncomment when reading mismatched tax line numbers
-        //currentApp.readSourceFile(source, ticketDate);
+        //currentApp.readSourceFile(source, lineNumber, ticketDate);
+        currentApp.readSourceFile(source, ticketDate);
         currentApp.await();
 
         log.info("✅ Processing complete.");

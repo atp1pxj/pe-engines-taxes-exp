@@ -23,7 +23,8 @@ public class UniqueMktsPEItinsLoader {
         File outputFile = new File("pe-engines-taxes/src/main/resources/PEItineraries_from_athena_csv_parallel/generated_output_txts/PEItins_parallel_unique_output.txt");
         String template = new String(Files.readAllBytes(Paths.get("pe-engines-taxes/src/main/resources/PEItineraries_from_athena_csv_parallel/PEItin_template.txt")));
 
-        processFile(new File("pe-engines-taxes/src/main/data/raw-us-world.csv"), template);
+        //processFile(new File("pe-engines-taxes/src/main/data/raw-us-world.csv"), template);
+        processFile(new File("/Users/pjannapureddy/All_sprints_2/3victors/2025_sprints/Sprint8_Apr14_Apr_25_taxes/1_Athena_query_results/1_athena_data_big_250622.csv"));
 
         // Write all results to one output file
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFile))) {
@@ -36,8 +37,10 @@ public class UniqueMktsPEItinsLoader {
         System.out.println("Done. Output written to " + outputFile.getAbsolutePath());
     }
 
-    private static void processFile(File inputFile, String template) throws IOException {
+    //private static void processFile(File inputFile, String template) throws IOException {
+    private static void processFile(File inputFile) throws IOException {
 
+        //Note: Very important - Make sure the headers ARE NOT WRAPPED IN QUOTES in the input CSV file. Otherwise, the logic will fail to work correctly.
         String headerLine = "itin_validatingcarrier,OBL_originairportcode,OBL_destinationairportcode,OBL_flightNumber,OBL_departdate,OBL_departtime,OBL_arrivedate,OBL_arrivetime,IBL_originairportcode,IBL_destinationairportcode,IBL_flightnumber,IBL_departdate,IBL_departtime,IBL_arrivedate,IBL_arrivetime,itin_cabin,itin_bookingcode,itin_totalamount,taxbreakdown,yq_val,yr_val,itin_true_tax_amount";
 
         List<String> headers = Arrays.asList(headerLine.split(","));
