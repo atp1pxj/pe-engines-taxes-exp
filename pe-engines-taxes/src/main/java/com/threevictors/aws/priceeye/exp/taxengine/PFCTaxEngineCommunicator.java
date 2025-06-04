@@ -46,6 +46,7 @@ public class PFCTaxEngineCommunicator {
 
     public RootPFCResponse sendRequest(PEItinerary itinerary ) {
         String request = pfcEngineRequestBuilder.buildRequest( itinerary );
+        //log.info("LN: " + itinerary.getChannel() + " JSON Request to PFC engines: " + request);
 
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder();
         requestBuilder.setHeader("Content-Type", "application/json");

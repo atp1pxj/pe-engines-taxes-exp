@@ -60,6 +60,7 @@ public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEng
         legData.setMarketedCarrier(leg.getMarketingCarrier());
         legData.setMarketedFlightNo(leg.getFlightNumber());
 
+        //Operating carrier and flight number are obtained from the SkinnyCacheFlightRecord
         //String originAirportCode, String destinationAirportCode, String carrierCode, int flightNumber, int travelDate
         SkinnyCacheFlightRecord skinnyCacheFlightRecord = oagRecordCache2.getApplicableFlightRecord(legData.getOriginCode(),
                 legData.getDestinationCode(),
@@ -138,6 +139,7 @@ public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEng
         //in the PEItinerary class as there is no other int field to hold the value.
         ctx.setTicketDate(String.valueOf(peItinerary.getDuration()));
 
+        //Note: Setting first outbound leg's marketing carrier as the validating carrier.
         ctx.setValidatingCarrier(peItinerary.getOutboundLegs().get(0).getMarketingCarrier());
         ctx.setCurrency(peItinerary.getCurrency());
         ctx.setTotalPrice(peItinerary.getTotalPrice());

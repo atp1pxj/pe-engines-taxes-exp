@@ -66,14 +66,23 @@ public class UniqueMktsPEItinsLoaderConnections {
         try {
             return String.join("-",
                     values[headerMap.get("itin_validatingcarrier")].trim(),
+
                     values[headerMap.get("OBL1_originairportcode")].trim(),
                     values[headerMap.get("OBL1_destinationairportcode")].trim(),
+                    values[headerMap.get("OBL1_mkt_carrier")].trim(),
+
                     values[headerMap.get("OBL2_originairportcode")].trim(),
                     values[headerMap.get("OBL2_destinationairportcode")].trim(),
+                    values[headerMap.get("OBL2_mkt_carrier")].trim(),
+
                     values[headerMap.get("IBL1_originairportcode")].trim(),
                     values[headerMap.get("IBL1_destinationairportcode")].trim(),
+                    values[headerMap.get("IBL1_mkt_carrier")].trim(),
+
                     values[headerMap.get("IBL2_originairportcode")].trim(),
-                    values[headerMap.get("IBL2_destinationairportcode")].trim()
+                    values[headerMap.get("IBL2_destinationairportcode")].trim(),
+                    values[headerMap.get("IBL2_mkt_carrier")].trim()
+
             );
         } catch (Exception e) {
             return null;

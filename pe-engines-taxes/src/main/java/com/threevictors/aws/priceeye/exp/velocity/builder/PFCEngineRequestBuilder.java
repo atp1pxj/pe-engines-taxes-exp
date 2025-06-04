@@ -80,8 +80,14 @@ public class PFCEngineRequestBuilder extends AbstractEngineRequestBuilder<PFCEng
         //Non-leg data
         //TODO: What field on the PEItinerary is the ticketDate? Not able to find it on the legs either. Should it be today's date?
         //Setting ticketDate to today's date in format yyMMdd
-        ctx.setTicketDate(LocalDate.now().format(DateTimeFormatter.ofPattern("yyMMdd")));
-        //Use the first leg's marketing carrier as the ticketing carrier. Even with carrier's like KG it should be fine.
+        //ctx.setTicketDate(LocalDate.now().format(DateTimeFormatter.ofPattern("yyMMdd")));
+
+        //TicketDate should be in format yyMMdd. Set to the date when the stubbed itin data was created.
+        //Note that this value is obtained from the runtime argument of the main method, which is set on the duration field
+        //in the PEItinerary class as there is no other int field to hold the value. So it was set on duration field.
+        ctx.setTicketDate(String.valueOf(peItinerary.getDuration()));
+
+        //Note: Use the first leg's marketing carrier as the ticketing carrier. Even with carrier's like KG it should be fine.
         ctx.setTicketingCarrier(peItinerary.getOutboundLegs().get(0).getMarketingCarrier());
     }
 

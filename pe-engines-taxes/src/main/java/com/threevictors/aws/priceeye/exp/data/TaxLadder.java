@@ -10,9 +10,13 @@ public class TaxLadder {
     private Map<String, BigDecimal> flatTaxRates;
     private Map<String, BigDecimal> percentageTaxRates;
 
+    //Added to hold onto the percent tax keys for later use to look up maxTaxWhenPercent
+    private Map<String, BigDecimal> percentageTaxKeyMap;
+
     public TaxLadder() {
         flatTaxRates = new TreeMap<>();
         percentageTaxRates = new TreeMap<>();
+        percentageTaxKeyMap = new TreeMap<>();
     }
 
     public boolean isEmpty() {
@@ -36,6 +40,12 @@ public class TaxLadder {
         BigDecimal existing = percentageTaxRates.computeIfAbsent(taxCode, k -> new BigDecimal(0));
         percentageTaxRates.put(taxCode, existing.add(taxRate));
     }
+
+    //Not needed. Keys are supposed to be unique in percentageTaxRates.
+    /*public void addPercentageTaxKeyMapRate(String taxKey, BigDecimal taxRate) {
+        BigDecimal existing = percentageTaxKeyMap.computeIfAbsent(taxKey, k -> new BigDecimal(0));
+        percentageTaxKeyMap.put(taxKey, existing.add(taxRate));
+    }*/
 
     public void setPercentageTaxRate(String taxCode, BigDecimal taxRate) {
         percentageTaxRates.put(taxCode, taxRate);
@@ -63,6 +73,11 @@ public class TaxLadder {
             taxRate = percentageTaxRates.get(taxCode);
         }
         return taxRate;
+    }
+
+    //Add getter for percentageTaxKeyMap
+    public Map<String, BigDecimal> getPercentageTaxKeyMap() {
+        return percentageTaxKeyMap;
     }
 
 }

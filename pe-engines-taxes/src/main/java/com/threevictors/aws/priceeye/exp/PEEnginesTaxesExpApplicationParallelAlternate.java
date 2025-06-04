@@ -49,8 +49,6 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
     private TaxEngineCommunicator taxEngineCommunicator;
     private PFCTaxEngineCommunicator pfcTaxEngineCommunicator;
 
-
-
     //19 values - After WG, WY fix, the count got reduced to 19.
     // values resolved (5) are 838, 3158, 4188, 4253, 5320, 6325
     /*List<Integer> misMatchTaxLineNumbers = Arrays.asList(
@@ -58,6 +56,13 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
             4928, 5217, 5579, 5750, 6012, 6230, 6609, 6615, 6618, 6642
     );*/
 
+    //List of mismatched tax line numbers with connections
+    List<Integer> misMatchTaxLineNumbers = Arrays.asList(
+            //22
+            //, 23, 30, 35, 36, 39, 40, 42, 43, 49, 50, 52, 53, 56, 57, 58, 59,
+            //69, 70, 71, 72, 98, 99, 112, 114, 130, 131, 135, 138, 140, 141, 142,
+            //143, 156, 157, 158, 160, 161, 167, 168, 169, 172
+    );
 
     //single line run
     //List<Integer> misMatchTaxLineNumbers = new ArrayList<>();
@@ -122,8 +127,8 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
     }
 
 
-    //Note: Original - don't delete
-    private void readSourceFile(File source, int specificLineNumber, String ticketDate) {
+    //Note: Original single line number arg - don't delete
+    /*private void readSourceFile(File source, int specificLineNumber, String ticketDate) {
         //Read the CSV directly and put it into the queue
         try (CSVReader reader = new CSVReader(new FileReader(source))) {
             String line[];
@@ -148,7 +153,6 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                 //Itineraries with connections
                 PEItinerary itinerary = PEItinerariesLoader.parsePEItineraryLineWithConnections(lineList);
 
-
                 //Set the ticket date on the itinerary object. Assign it to the duration field for the time being.
                 itinerary.setDuration(Integer.parseInt(ticketDate));
                 queue.put( itinerary );
@@ -163,12 +167,12 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
             log.error("Error reading source file", e);
         }
 
-    }
+    }*/
 
 
     //TODO: Uncomment this only when misMatchTaxLineNumbers is used.
     //Send only the list of mismatched line numbers to the readSourceFile method
-    /*private void readSourceFile(File source, String ticketDate) {
+    private void readSourceFile(File source, String ticketDate) {
         // Read the CSV directly and put it into the queue
         try (CSVReader reader = new CSVReader(new FileReader(source))) {
             String[] line;
@@ -177,15 +181,21 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
             while ((line = reader.readNext()) != null) {
                 lineNumber++;
 
+                //TODO: Uncomment this when reading mismatched tax line numbers. Keep it commented to run all the lines.
                 // Skip lines not in the mismatch list
-                if (!misMatchTaxLineNumbers.contains(lineNumber)) {
+                /*if (!misMatchTaxLineNumbers.contains(lineNumber)) {
                     continue;
-                }
+                }*/
 
                 List<String> lineList = new ArrayList<>(Arrays.asList(line));
                 lineList.add(String.valueOf(lineNumber));
 
-                PEItinerary itinerary = PEItinerariesLoader.parsePEItineraryLine(lineList);
+                //Non-stop itineraries only
+                //PEItinerary itinerary = PEItinerariesLoader.parsePEItineraryLine(lineList);
+
+                // Itineraries with connections
+                PEItinerary itinerary = PEItinerariesLoader.parsePEItineraryLineWithConnections(lineList);
+
                 // Set the ticket date on the itinerary object. Assign it to the duration field for the time being.
                 itinerary.setDuration(Integer.parseInt(ticketDate));
                 queue.put(itinerary);
@@ -198,7 +208,7 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
         } catch (Exception e) {
             log.error("Error reading source file", e);
         }
-    }*/
+    }
 
 
     private void await()  {
@@ -243,9 +253,10 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
         File source = new File("pe-engines-taxes/src/main/resources/PEItineraries_from_athena_csv_parallel/generated_output_txts/PEItins_parallel_unique_output_conns.txt");
 
         currentApp.startWorkerThreads();
-        currentApp.readSourceFile(source, lineNumber, ticketDate);
+        //currentApp.readSourceFile(source, lineNumber, ticketDate);
+
         //Uncomment when reading mismatched tax line numbers
-        //currentApp.readSourceFile(source, ticketDate);
+        currentApp.readSourceFile(source, ticketDate);
         currentApp.await();
 
         log.info("✅ Processing complete.");
@@ -330,11 +341,19 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                                                 currentChargeDetail.getChargeDescription().contains("% of 50.00USD"))
                                 )
                         ) {
+                            //Note: Try saving with taxmap key instead of taxCode so that it can be used later to retrieve the maxTaxPercent value.
+
                             // For AS and HI based mkts, Engines use a tax rate sheet. The response charge is still treated as a percent value.
                             // Note that it differs from the X1 tax record data points (e.g., 7.5%).
                             // For example, for HI and AS mkts,  chargeDescription: "0.29% of 50.00USD" (RT per leg) or "0.29% of 100.00USD" (one way) will be showing up.
                             // This assumes fares total 100 or 50 per leg, and the responseCharge reflects the required percentage.
-                            taxLadder.addPercentageTaxRate(taxCode, currentChargeDetail.getResponseCharge());
+
+                            //Original working line
+                            //taxLadder.addPercentageTaxRate(taxCode, currentChargeDetail.getResponseCharge());
+
+                            // Use the taxCode as the key to store the percentage tax rate
+                            taxLadder.getPercentageTaxKeyMap().put(mapKeyLookup, currentChargeDetail.getResponseCharge());
+
                         }
                         // Tax on Tax. so treat it as flat tax
                         else {
@@ -396,7 +415,8 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
 
         BigDecimal netOfFlatTax = itineraryTotal.subtract( taxLadder.getTotalFlatTaxRate() );
 
-        for ( String taxCode : taxLadder.getPercentageTaxCodes()) {
+        //Original working code
+        /*for ( String taxCode : taxLadder.getPercentageTaxCodes()) {
             BigDecimal percentTaxRate = taxLadder.getPercentageTaxRate(taxCode);
 
             BigDecimal denominator = BigDecimal.ONE.add(percentTaxRate.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP));
@@ -404,7 +424,34 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
             BigDecimal taxValue    = netOfFlatTax.subtract(fraction);
 
             taxLadder.setPercentageTaxRate( taxCode, taxValue );
+        }*/
+
+        for ( String taxMapKey : taxLadder.getPercentageTaxKeyMap().keySet() ) {
+
+            BigDecimal percentTaxRate = taxLadder.getPercentageTaxKeyMap().get(taxMapKey);
+
+            BigDecimal denominator = BigDecimal.ONE.add(percentTaxRate.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP));
+            BigDecimal fraction    = netOfFlatTax.divide(denominator, 4, RoundingMode.HALF_UP);
+            BigDecimal taxValue    = netOfFlatTax.subtract(fraction);
+
+            //You need to look up the maxTaxPercent value from the x1TaxRecordDataPointsMap
+            // and select the minimum of the two values and use the minimum value only when maxTaxWhenPercent is greater than 0.
+            BigDecimal maxTaxWhenPercent = BigDecimal.valueOf(x1TaxRecordDataPointsMap.get(taxMapKey).getMaxTaxWhenPercent());
+
+            if (maxTaxWhenPercent.compareTo(BigDecimal.ZERO) > 0) {
+                taxValue = taxValue.min(maxTaxWhenPercent);
+            }
+            /*else {
+                //If maxTaxWhenPercent is 0, then use the calculated taxValue as is.
+                taxValue = taxValue.setScale(2, RoundingMode.HALF_UP);
+            }*/
+
+            String taxCode = taxMapKey.split(",")[1];
+            //Add up all the percentage tax values corresponding to the taxCode.
+            taxLadder.addPercentageTaxRate(taxCode, taxValue);
         }
+
+
     }
 
     private void validateCalculatedTaxes(PEItinerary currentItin, TaxLadder taxLadder) {
