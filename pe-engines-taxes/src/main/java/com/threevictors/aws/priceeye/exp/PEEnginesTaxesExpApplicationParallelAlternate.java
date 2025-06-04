@@ -348,12 +348,8 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                             // For example, for HI and AS mkts,  chargeDescription: "0.29% of 50.00USD" (RT per leg) or "0.29% of 100.00USD" (one way) will be showing up.
                             // This assumes fares total 100 or 50 per leg, and the responseCharge reflects the required percentage.
 
-                            //Original working line
-                            //taxLadder.addPercentageTaxRate(taxCode, currentChargeDetail.getResponseCharge());
-
-                            // Use the taxCode as the key to store the percentage tax rate
+                            // Use the mapKeyLookup as the key to store the percentage tax rate. This is to aid with the maxTaxWhenPercent lookup later.
                             taxLadder.getPercentageTaxKeyMap().put(mapKeyLookup, currentChargeDetail.getResponseCharge());
-
                         }
                         // Tax on Tax. so treat it as flat tax
                         else {
@@ -415,17 +411,6 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
 
         BigDecimal netOfFlatTax = itineraryTotal.subtract( taxLadder.getTotalFlatTaxRate() );
 
-        //Original working code
-        /*for ( String taxCode : taxLadder.getPercentageTaxCodes()) {
-            BigDecimal percentTaxRate = taxLadder.getPercentageTaxRate(taxCode);
-
-            BigDecimal denominator = BigDecimal.ONE.add(percentTaxRate.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP));
-            BigDecimal fraction    = netOfFlatTax.divide(denominator, 4, RoundingMode.HALF_UP);
-            BigDecimal taxValue    = netOfFlatTax.subtract(fraction);
-
-            taxLadder.setPercentageTaxRate( taxCode, taxValue );
-        }*/
-
         for ( String taxMapKey : taxLadder.getPercentageTaxKeyMap().keySet() ) {
 
             BigDecimal percentTaxRate = taxLadder.getPercentageTaxKeyMap().get(taxMapKey);
@@ -434,25 +419,19 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
             BigDecimal fraction    = netOfFlatTax.divide(denominator, 4, RoundingMode.HALF_UP);
             BigDecimal taxValue    = netOfFlatTax.subtract(fraction);
 
-            //You need to look up the maxTaxPercent value from the x1TaxRecordDataPointsMap
-            // and select the minimum of the two values and use the minimum value only when maxTaxWhenPercent is greater than 0.
+            //Look up the maxTaxPercent value from the x1TaxRecordDataPointsMap
+            // and select the minimum of the two values. Use the minimum value only when maxTaxWhenPercent is greater than 0.
             BigDecimal maxTaxWhenPercent = BigDecimal.valueOf(x1TaxRecordDataPointsMap.get(taxMapKey).getMaxTaxWhenPercent());
-
             if (maxTaxWhenPercent.compareTo(BigDecimal.ZERO) > 0) {
                 taxValue = taxValue.min(maxTaxWhenPercent);
             }
-            /*else {
-                //If maxTaxWhenPercent is 0, then use the calculated taxValue as is.
-                taxValue = taxValue.setScale(2, RoundingMode.HALF_UP);
-            }*/
 
             String taxCode = taxMapKey.split(",")[1];
             //Add up all the percentage tax values corresponding to the taxCode.
             taxLadder.addPercentageTaxRate(taxCode, taxValue);
         }
-
-
     }
+
 
     private void validateCalculatedTaxes(PEItinerary currentItin, TaxLadder taxLadder) {
 

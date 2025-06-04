@@ -41,12 +41,6 @@ public class TaxLadder {
         percentageTaxRates.put(taxCode, existing.add(taxRate));
     }
 
-    //Not needed. Keys are supposed to be unique in percentageTaxRates.
-    /*public void addPercentageTaxKeyMapRate(String taxKey, BigDecimal taxRate) {
-        BigDecimal existing = percentageTaxKeyMap.computeIfAbsent(taxKey, k -> new BigDecimal(0));
-        percentageTaxKeyMap.put(taxKey, existing.add(taxRate));
-    }*/
-
     public void setPercentageTaxRate(String taxCode, BigDecimal taxRate) {
         percentageTaxRates.put(taxCode, taxRate);
     }
