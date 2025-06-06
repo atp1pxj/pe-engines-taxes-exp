@@ -14,7 +14,10 @@
 
     <properties>
         <!--suppress UnresolvedMavenProperty -->
-        <resources.resource.directory>${maven.multiModuleProjectDirectory}/resources/</resources.resource.directory>
+        <!--<resources.resource.directory>${maven.multiModuleProjectDirectory}/resources/</resources.resource.directory>-->
+        <!--<resources.resource.directory>src/main/resources/</resources.resource.directory>-->
+        <resources.resource.directory>${project.basedir}/src/main/resources/</resources.resource.directory>
+
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -128,6 +131,39 @@
                 <filtering>true</filtering>
             </resource>
         </resources>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.5.1</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>com.threevictors.aws.priceeye.exp.PEEnginesTaxesExpApplicationParallelAlternate</mainClass>
+                                </transformer>
+                            </transformers>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
         <pluginManagement>
             <plugins>
                 <plugin>
@@ -339,8 +375,21 @@
                                 <goal>shade</goal>
                             </goals>
                             <configuration>
+                                <filters>
+                                    <filter>
+                                        <artifact>*:*</artifact>
+                                        <excludes>
+                                            <exclude>META-INF/*.SF</exclude>
+                                            <exclude>META-INF/*.DSA</exclude>
+                                            <exclude>META-INF/*.RSA</exclude>
+                                        </excludes>
+                                    </filter>
+                                </filters>
                                 <transformers>
                                     <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                                    <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                        <mainClass>com.threevictors.aws.priceeye.exp.PEEnginesTaxesExpApplicationParallelAlternate</mainClass>
+                                    </transformer>
                                 </transformers>
                             </configuration>
                         </execution>
@@ -358,6 +407,16 @@
             <groupId>com.threevictors.aws.priceeye</groupId>
             <artifactId>threevictors-priceeye-data</artifactId>
             <version>${version.priceeyev2}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.logging.log4j</groupId>
+                    <artifactId>log4j-1.2-api</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>log4j-over-slf4j</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <!-- Add threevictors-priceeye-common dependency -->
@@ -365,6 +424,16 @@
             <groupId>com.threevictors.aws.priceeye</groupId>
             <artifactId>threevictors-priceeye-common</artifactId>
             <version>${version.priceeyev2}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.logging.log4j</groupId>
+                    <artifactId>log4j-1.2-api</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>log4j-over-slf4j</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <!-- Pull the service-fee-engine (jar type) from maven repo. Not engine-servicefees which is a parent (pom type)-->
@@ -431,6 +500,16 @@
             <artifactId>threevictors-common-database-data-access-aurora-metadata</artifactId>
             <!--TODO:need to see if there is a known dynamic version for this -->
             <version>0.178</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.logging.log4j</groupId>
+                    <artifactId>log4j-1.2-api</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>log4j-over-slf4j</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>

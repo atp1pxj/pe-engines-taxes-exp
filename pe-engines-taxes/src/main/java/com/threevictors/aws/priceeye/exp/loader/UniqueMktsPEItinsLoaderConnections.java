@@ -17,8 +17,17 @@ public class UniqueMktsPEItinsLoaderConnections {
     public static void main(String[] args) throws IOException {
 
         //Note: Very important - Make sure the headers ARE NOT WRAPPED IN QUOTES in the input CSV file. Otherwise, the logic will fail to work correctly.
-        File inputFile = new File("/Users/pjannapureddy/All_sprints_2/3victors/2025_sprints/Sprint9_May27_Jun6/athena_input_file_2krows_20250530.csv");
-        File outputFile = new File("pe-engines-taxes/src/main/resources/PEItineraries_from_athena_csv_parallel/generated_output_txts/PEItins_parallel_unique_output_conns.txt");
+        // Check if both input and output file paths are provided
+        if (args.length < 2) {
+            System.err.println("Error: Please provide both input and output file paths as arguments.");
+            System.exit(1);
+        }
+
+        String inputFilePath = args[0];
+        String outputFilePath = args[1];
+
+        File inputFile = new File(inputFilePath);
+        File outputFile = new File(outputFilePath);
 
         processFile(inputFile);
 

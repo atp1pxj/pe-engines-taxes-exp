@@ -13,13 +13,22 @@ import com.threevictors.aws.priceeye.exp.model.pfcengine.response.RootPFCRespons
 import com.threevictors.aws.priceeye.exp.model.taxengine.response.*;
 import com.threevictors.aws.priceeye.exp.taxengine.PFCTaxEngineCommunicator;
 import com.threevictors.aws.priceeye.exp.taxengine.TaxEngineCommunicator;
+
+//Note that these are coming from spring dependencies
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+//apache log4j2 dependencies
+/*import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;*/
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.InputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.net.URL;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.*;
@@ -28,6 +37,8 @@ import java.io.FileReader;
 public class PEEnginesTaxesExpApplicationParallelAlternate {
 
     private final static Log log = LogFactory.getLog(PEEnginesTaxesExpApplicationParallelAlternate.class);
+    //private static final Logger log = LogManager.getLogger(PEEnginesTaxesExpApplicationParallelAlternate.class);
+
 
     private static final String FLAT_TAX = "Flat Tax";
     private static final String PERCENT_TAX = "Percent Tax";
@@ -59,15 +70,15 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
     //List of mismatched tax line numbers with connections
     List<Integer> misMatchTaxLineNumbers = Arrays.asList(
             //22
+            //50
+            //147
+            //58
             //, 23, 30, 35, 36, 39, 40, 42, 43, 49, 50, 52, 53, 56, 57, 58, 59,
             //69, 70, 71, 72, 98, 99, 112, 114, 130, 131, 135, 138, 140, 141, 142,
             //143, 156, 157, 158, 160, 161, 167, 168, 169, 172
     );
 
-    //single line run
-    //List<Integer> misMatchTaxLineNumbers = new ArrayList<>();
-
-    public PEEnginesTaxesExpApplicationParallelAlternate() {
+    public PEEnginesTaxesExpApplicationParallelAlternate() throws Exception {
         queue = new LinkedBlockingQueue<>(QUEUE_CAPACITY);
         executor = Executors.newFixedThreadPool(THREAD_COUNT);
         latch = new CountDownLatch(THREAD_COUNT);
@@ -78,18 +89,28 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
         X1TaxRecordDataPointsLoader x1TaxRecordDataPointsLoader = new X1TaxRecordDataPointsLoader();
         log.info("Loading X1 tax record data points from redis dump file...");
         long startTime = System.currentTimeMillis();
-        x1TaxRecordDataPointsMap = Collections.unmodifiableMap(
+
+        /*x1TaxRecordDataPointsMap = Collections.unmodifiableMap(
                 x1TaxRecordDataPointsLoader.loadTaxRecordDataPoints("pe-engines-taxes/src/main/resources/xldatapoints_all_taxrecs_from_redis_all_20250515.txt")
+        );*/
+
+        InputStream inputStream = getClass().getClassLoader().getResourceAsStream("xldatapoints_all_taxrecs_from_redis_all_20250515.txt");
+        if (inputStream == null) {
+            throw new FileNotFoundException("Resource not found");
+        }
+        x1TaxRecordDataPointsMap = Collections.unmodifiableMap(
+                x1TaxRecordDataPointsLoader.loadTaxRecordDataPoints(inputStream)
         );
+
         log.info("DONE Loading X1 tax record data points from redis dump file. Time taken: " + (System.currentTimeMillis() - startTime) + " ms");
 
         //TODO: this would not be needed
-        log.info("Loading PFC tax record data points from redis dump file...");
+       /* log.info("Loading PFC tax record data points from redis dump file...");
         startTime = System.currentTimeMillis();
         pfcTaxMap = Collections.unmodifiableMap(
                 PFCAmountsLoader.parseAndLoadPFCTaxesRedisData("pe-engines-taxes/src/main/resources/pfcRedisDump_20250520.txt")
         );
-        log.info("DONE Loading PFC tax record data points from redis dump file. Time taken: " + (System.currentTimeMillis() - startTime) + " ms");
+        log.info("DONE Loading PFC tax record data points from redis dump file. Time taken: " + (System.currentTimeMillis() - startTime) + " ms");*/
     }
 
 
@@ -222,8 +243,10 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
 
     public static void main(String[] args) throws Exception {
 
-        if (args.length < 1) {
-            throw new IllegalArgumentException("Mandatory argument 'ticketDate' is missing. Format: yyMMdd");
+        //if (args.length < 1) {
+        if (args.length < 2) {
+            throw new IllegalArgumentException("Mandatory arguments - 'ticketDate' with Format: yyMMdd"
+                    + " and input file 'uniqueMktsPEItinsFilePath' need to be provided.");
         }
 
         String ticketDate = args[0];
@@ -231,10 +254,12 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
             throw new IllegalArgumentException("Invalid 'ticketDate' format. Expected format: yyMMdd");
         }
 
+        String uniqueMktsPEItinsFilePath = args[1];
+
         int lineNumber = -1; // Default value for optional argument
-        if (args.length > 1) {
+        if (args.length > 2) {
             try {
-                lineNumber = Integer.parseInt(args[1]);
+                lineNumber = Integer.parseInt(args[2]);
             } catch (NumberFormatException e) {
                 throw new IllegalArgumentException("Optional argument 'lineNumber' must be an integer.");
             }
@@ -242,6 +267,7 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
 
         // Log the arguments for verification
         log.info("Ticket Date: " + ticketDate);
+        log.info("uniqueMktsPEItinsFilePath: " + uniqueMktsPEItinsFilePath);
         log.info("Line Number: " + (lineNumber == -1 ? "Not provided" : lineNumber));
 
         PEEnginesTaxesExpApplicationParallelAlternate currentApp = new PEEnginesTaxesExpApplicationParallelAlternate();
@@ -249,9 +275,10 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
         // Source file path with non-stop itineraries
         //File source = new File("pe-engines-taxes/src/main/resources/PEItineraries_from_athena_csv_parallel/generated_output_txts/PEItins_parallel_unique_output.txt");
 
+        //Note: Original local file path
         // Source file path with connecting itineraries
-        File source = new File("pe-engines-taxes/src/main/resources/PEItineraries_from_athena_csv_parallel/generated_output_txts/PEItins_parallel_unique_output_conns.txt");
-
+        //File source = new File("pe-engines-taxes/src/main/resources/PEItineraries_from_athena_csv_parallel/generated_output_txts/PEItins_parallel_unique_output_conns.txt");
+        File source = new File(uniqueMktsPEItinsFilePath);
         currentApp.startWorkerThreads();
         //currentApp.readSourceFile(source, lineNumber, ticketDate);
 
