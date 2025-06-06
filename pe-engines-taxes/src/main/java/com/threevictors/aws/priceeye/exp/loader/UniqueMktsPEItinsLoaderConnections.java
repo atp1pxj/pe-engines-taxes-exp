@@ -7,6 +7,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 
+
 //INPUT CSV DATA GENERATION CLASS for data with connections
 //NOTE: Run this class to generate the unique itineraries from the large input files.
 // The output will be written to a text file in the specified directory.
@@ -38,8 +39,9 @@ public class UniqueMktsPEItinsLoaderConnections {
             }
         }
 
+        //TODO: temp commented out the print statement to avoid confusion in the output.
         //Note: Once the output file is generated, delete the header row from the output file manually as it will fail the parsing logic.
-        System.out.println("Done. Output written to " + outputFile.getAbsolutePath());
+        //System.out.println("Done. Output written to " + outputFile.getAbsolutePath());
     }
 
     private static void processFile(File inputFile) throws IOException {

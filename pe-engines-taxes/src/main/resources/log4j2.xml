@@ -1,10 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Configuration>
+<Configuration status="DEBUG">
 	<Appenders>
-		<Console name="STDOUT" target="SYSTEM_OUT">
-			<PatternLayout pattern="%d{ISO8601} %-5p [%c{1}] %t %m%n"/>
+		<!--<Console name="STDOUT" target="SYSTEM_OUT">
+			&lt;!&ndash;<PatternLayout pattern="%d{ISO8601} %-5p [%c{1}] %t %m%n"/>&ndash;&gt;
+			<PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss} %-5p %c{1}:%L - %msg%n"/>
+		</Console>-->
+
+		<Console name="Console" target="SYSTEM_OUT">
+			<PatternLayout pattern="%d{ISO8601} %-5p [%c{1}] %m%n" />
 		</Console>
+        <File name="FileLogger" fileName="app.log">
+			<PatternLayout pattern="%d{ISO8601} %-5p [%c{1}] %m%n"/>
+		</File>
 	</Appenders>
+
 	<Loggers>
 		<Logger name="com.threevictors" level="info"/>
 
@@ -21,7 +30,9 @@
 		<Logger name="software"           level="warn"/>
 
 		<Root level="info">
-			<AppenderRef ref="STDOUT"/>
+			<!--<AppenderRef ref="STDOUT"/>-->
+			<AppenderRef ref="Console" />
+			<AppenderRef ref="FileLogger"/>
 		</Root>
 	</Loggers>
 </Configuration>

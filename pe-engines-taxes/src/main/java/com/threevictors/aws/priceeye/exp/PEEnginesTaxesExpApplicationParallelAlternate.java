@@ -15,12 +15,12 @@ import com.threevictors.aws.priceeye.exp.taxengine.PFCTaxEngineCommunicator;
 import com.threevictors.aws.priceeye.exp.taxengine.TaxEngineCommunicator;
 
 //Note that these are coming from spring dependencies
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+/*import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;*/
 
 //apache log4j2 dependencies
-/*import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;*/
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -36,8 +36,8 @@ import java.io.FileReader;
 
 public class PEEnginesTaxesExpApplicationParallelAlternate {
 
-    private final static Log log = LogFactory.getLog(PEEnginesTaxesExpApplicationParallelAlternate.class);
-    //private static final Logger log = LogManager.getLogger(PEEnginesTaxesExpApplicationParallelAlternate.class);
+    //private final static Log log = LogFactory.getLog(PEEnginesTaxesExpApplicationParallelAlternate.class);
+    private static final Logger log = LogManager.getLogger(PEEnginesTaxesExpApplicationParallelAlternate.class);
 
 
     private static final String FLAT_TAX = "Flat Tax";

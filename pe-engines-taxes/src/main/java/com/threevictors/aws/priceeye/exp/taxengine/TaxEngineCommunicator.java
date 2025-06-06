@@ -5,8 +5,13 @@ import com.google.gson.GsonBuilder;
 import com.threevictors.aws.data.priceeye.PEItinerary;
 import com.threevictors.aws.priceeye.exp.model.taxengine.response.RootResponse;
 import com.threevictors.aws.priceeye.exp.velocity.builder.TaxEngineRequestBuilder;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+
+/*import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;*/
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 
 import java.io.IOException;
 import java.net.URI;
@@ -19,7 +24,8 @@ import java.time.temporal.ChronoUnit;
 
 public class TaxEngineCommunicator {
 
-    private final static Log log = LogFactory.getLog(TaxEngineCommunicator.class);
+    //private final static Log log = LogFactory.getLog(TaxEngineCommunicator.class);
+    private static final Logger log = LogManager.getLogger(TaxEngineCommunicator.class);
 
     private final static String URI = "http://tax-sfe-service.engines-stg.use1.atpco.local/tax";
     private HttpClient httpClient;

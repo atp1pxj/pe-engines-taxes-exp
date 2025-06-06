@@ -7,8 +7,14 @@ import com.threevictors.aws.priceeye.exp.model.pfcengine.response.RootPFCRespons
 import com.threevictors.aws.priceeye.exp.model.taxengine.response.RootResponse;
 import com.threevictors.aws.priceeye.exp.velocity.builder.PFCEngineRequestBuilder;
 import com.threevictors.aws.priceeye.exp.velocity.builder.TaxEngineRequestBuilder;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+
+/*import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;*/
+
+//apache log4j2 dependencies
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 
 import java.io.IOException;
 import java.net.URI;
@@ -19,10 +25,13 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 
+
+
 //TODO: Refactor this class and the TaxEngineCommunicator class to streamline the code and remove redundancy.
 public class PFCTaxEngineCommunicator {
 
-    private final static Log log = LogFactory.getLog(PFCTaxEngineCommunicator.class);
+    //private final static Log log = LogFactory.getLog(PFCTaxEngineCommunicator.class);
+    private static final Logger log = LogManager.getLogger(PFCTaxEngineCommunicator.class);
 
     private final static String URI = "http://tax-sfe-service.engines-stg.use1.atpco.local/pfcEngine";
     private HttpClient httpClient;
