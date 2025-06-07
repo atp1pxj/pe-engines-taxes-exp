@@ -32,16 +32,23 @@ public class UniqueMktsPEItinsLoaderConnections {
 
         processFile(inputFile);
 
+        System.out.println("Begin output will be written to " + outputFile.getAbsolutePath());
+
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFile))) {
             for (String line : outputLines) {
                 writer.write(line);
                 writer.newLine();
             }
+            writer.flush();
+            writer.close();
+        } catch (IOException e) {
+            System.err.println("Error writing to output file: " + e.getMessage());
+            e.printStackTrace();
+            System.exit(1);
         }
 
-        //TODO: temp commented out the print statement to avoid confusion in the output.
         //Note: Once the output file is generated, delete the header row from the output file manually as it will fail the parsing logic.
-        //System.out.println("Done. Output written to " + outputFile.getAbsolutePath());
+        System.out.println("Done. Output written to " + outputFile.getAbsolutePath());
     }
 
     private static void processFile(File inputFile) throws IOException {
