@@ -46,15 +46,15 @@ public class TaxEngineCommunicator {
     }
 
 
-    public RootResponse sendRequest(PEItinerary itinerary ) {
+    public RootResponse sendRequest(PEItinerary itinerary, String queryId ) {
 
         String request = taxEngineRequestBuilder.buildRequest( itinerary );
         //log.info("LN: " + itinerary.getChannel() + " JSON Request to taxengines: " + request);
 
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder();
         requestBuilder.setHeader("Content-Type", "application/json");
-
         requestBuilder.setHeader("Accept", "application/json");
+        requestBuilder.setHeader("X-Correlation-ID", queryId);
 
         try {
             requestBuilder.uri(new URI(URI));

@@ -4,7 +4,6 @@ import com.opencsv.CSVReader;
 import com.threevictors.aws.data.aws.RawLeg;
 import com.threevictors.aws.data.priceeye.PEItinerary;
 import com.threevictors.aws.priceeye.exp.loader.PEItinerariesLoader;
-import com.threevictors.aws.priceeye.exp.loader.PFCAmountsLoader;
 import com.threevictors.aws.priceeye.exp.loader.X1TaxRecordDataPointsLoader;
 import com.threevictors.aws.priceeye.exp.data.*;
 
@@ -27,9 +26,8 @@ import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.net.URL;
-import java.nio.file.Paths;
 import java.util.*;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.*;
 import java.io.FileReader;
@@ -47,6 +45,9 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
 
     private static final int QUEUE_CAPACITY = 2000; // Tune as needed
     private static final int THREAD_COUNT = Runtime.getRuntime().availableProcessors();
+
+    private static final String QUERY_ID_PREFIX_3V = "3v-";
+
 
     private Map<String, X1TaxRecordDataPoints> x1TaxRecordDataPointsMap;
 
@@ -126,10 +127,12 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                             break;
                         }
 
-                        RootResponse rootResponse = taxEngineCommunicator.sendRequest( itinerary );
+                        // Generate the queryId
+                        String queryId = QUERY_ID_PREFIX_3V + UUID.randomUUID();
+                        RootResponse rootResponse = taxEngineCommunicator.sendRequest( itinerary, queryId );
 
                         if (rootResponse != null) {
-                            examineTaxes(rootResponse, itinerary );
+                            examineTaxes(rootResponse, itinerary, queryId );
                         }
                         else {
                             log.error("Null response for itinerary: " + itinerary);
@@ -291,7 +294,7 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
     }//End of main method.
 
 
-    private void examineTaxes(RootResponse convertedResponse, PEItinerary currentItin) {
+    private void examineTaxes(RootResponse convertedResponse, PEItinerary currentItin, String queryId) {
         if (convertedResponse == null) {
             log.error("Converted response is null");
             return;
@@ -322,7 +325,7 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
             return;
         }
 
-        BigDecimal pfcTaxes = calculatePFCTaxes(currentItin);
+        BigDecimal pfcTaxes = calculatePFCTaxes(currentItin, queryId);
 
         if ( pfcTaxes.compareTo( BigDecimal.ZERO ) > 0) {
             taxLadder.addFlatTaxRate("XF", pfcTaxes.min(BigDecimal.valueOf(18)));
@@ -411,11 +414,11 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
         return totalFlatTaxAmount.add(totalTaxOnTaxAmount);
     }
 
-    private BigDecimal calculatePFCTaxes(PEItinerary currentItin) {
+    private BigDecimal calculatePFCTaxes(PEItinerary currentItin, String queryId) {
 
         AtomicReference<BigDecimal> pfcTaxes = new AtomicReference<>(BigDecimal.ZERO);
 
-        RootPFCResponse rootPFCResponse = pfcTaxEngineCommunicator.sendRequest(currentItin);
+        RootPFCResponse rootPFCResponse = pfcTaxEngineCommunicator.sendRequest(currentItin, queryId);
 
         if (rootPFCResponse != null && rootPFCResponse.getPfcResponse() != null
                 && rootPFCResponse.getPfcResponse().getCharges() != null

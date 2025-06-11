@@ -4,9 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.threevictors.aws.data.priceeye.PEItinerary;
 import com.threevictors.aws.priceeye.exp.model.pfcengine.response.RootPFCResponse;
-import com.threevictors.aws.priceeye.exp.model.taxengine.response.RootResponse;
 import com.threevictors.aws.priceeye.exp.velocity.builder.PFCEngineRequestBuilder;
-import com.threevictors.aws.priceeye.exp.velocity.builder.TaxEngineRequestBuilder;
 
 /*import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;*/
@@ -53,14 +51,14 @@ public class PFCTaxEngineCommunicator {
     }
 
 
-    public RootPFCResponse sendRequest(PEItinerary itinerary ) {
+    public RootPFCResponse sendRequest(PEItinerary itinerary, String queryId) {
         String request = pfcEngineRequestBuilder.buildRequest( itinerary );
         //log.info("LN: " + itinerary.getChannel() + " JSON Request to PFC engines: " + request);
 
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder();
         requestBuilder.setHeader("Content-Type", "application/json");
-
         requestBuilder.setHeader("Accept", "application/json");
+        requestBuilder.setHeader("X-Correlation-ID", queryId);
 
         try {
             requestBuilder.uri(new URI(URI));
