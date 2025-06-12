@@ -7,11 +7,9 @@
 		</Console>-->
 
 		<Console name="Console" target="SYSTEM_OUT">
-			<!--<PatternLayout pattern="%d{ISO8601} %-5p [%c{1}] %m%n" />-->
 			<PatternLayout pattern="%d{ISO8601} %-5p [%c{1}] %t %m%n" />
 		</Console>
         <File name="FileLogger" fileName="app.log">
-			<!--<PatternLayout pattern="%d{ISO8601} %-5p [%c{1}] %m%n"/>-->
 			<PatternLayout pattern="%d{ISO8601} %-5p [%c{1}] %t %m%n"/>
 		</File>
 	</Appenders>
