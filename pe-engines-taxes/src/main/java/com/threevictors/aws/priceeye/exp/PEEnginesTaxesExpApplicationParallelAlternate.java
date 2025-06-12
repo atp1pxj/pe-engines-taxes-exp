@@ -474,7 +474,8 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
 
         if (!didCalculatedTaxesMatch) {
             log.info(logRoute( currentItin ));
-            log.info("Expected: " + itineraryTaxes + " Actual: " + totalTax + " Diff: " + taxDifference );
+            //TODO: Add LN formatting here
+            log.info("Expected: " + itineraryTaxes + " Actual: " + totalTax + " Diff: " + taxDifference +  " LN: " + currentItin.getChannel());
 
             compareTaxLadders(currentItin, taxLadder);
         }
@@ -512,7 +513,8 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                 if (expectedValue != null && responseValue != null) {
                     diff = String.format("%.2f", Double.parseDouble( expectedValue ) - responseValue.doubleValue());
                 }
-                log.error(String.format("%s: Expected: %6s Actual: %6s Diff: %6s", taxKey, expectedValue == null ? "------" : expectedValue, responseValue == null ? "------" : responseValue, diff));
+                //TODO: Add LN formatting here
+                log.error(String.format("%s: Expected: %6s Actual: %6s Diff: %6s LN: %s", taxKey, expectedValue == null ? "------" : expectedValue, responseValue == null ? "------" : responseValue, diff, currentItin.getChannel()));
                 mismatchFound = true;
             }
         }
