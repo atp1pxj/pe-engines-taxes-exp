@@ -95,7 +95,7 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                 x1TaxRecordDataPointsLoader.loadTaxRecordDataPoints("pe-engines-taxes/src/main/resources/xldatapoints_all_taxrecs_from_redis_all_20250515.txt")
         );*/
 
-        InputStream inputStream = getClass().getClassLoader().getResourceAsStream("xldatapoints_all_taxrecs_from_redis_all_20250515.txt");
+        InputStream inputStream = getClass().getClassLoader().getResourceAsStream("xldatapoints_all_taxrecs_from_redis_all_20250611.txt");
         if (inputStream == null) {
             throw new FileNotFoundException("Resource not found");
         }
