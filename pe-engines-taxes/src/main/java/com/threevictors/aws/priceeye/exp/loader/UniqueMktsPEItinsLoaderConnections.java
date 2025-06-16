@@ -76,26 +76,38 @@ public class UniqueMktsPEItinsLoaderConnections {
     }
 
     private static String generateKey(String[] values, Map<String, Integer> headerMap) {
+        //Note: To toss out all the open jaw itineraries,
+        // we need to ensure that all the marketed carriers in each of the legs are the same.
         try {
-            return String.join("-",
-                    values[headerMap.get("itin_validatingcarrier")].trim(),
+            String obl1MktCarrier = values[headerMap.get("OBL1_mkt_carrier")].trim();
+            String obl2MktCarrier = values[headerMap.get("OBL2_mkt_carrier")].trim();
+            String ibl1MktCarrier = values[headerMap.get("IBL1_mkt_carrier")].trim();
+            String ibl2MktCarrier = values[headerMap.get("IBL2_mkt_carrier")].trim();
 
-                    values[headerMap.get("OBL1_originairportcode")].trim(),
-                    values[headerMap.get("OBL1_destinationairportcode")].trim(),
-                    values[headerMap.get("OBL1_mkt_carrier")].trim(),
+            if (obl1MktCarrier.equalsIgnoreCase(obl2MktCarrier) &&
+                    obl1MktCarrier.equalsIgnoreCase(ibl1MktCarrier) &&
+                    obl1MktCarrier.equalsIgnoreCase(ibl2MktCarrier)) {
+                return String.join("-",
+                        values[headerMap.get("itin_validatingcarrier")].trim(),
 
-                    values[headerMap.get("OBL2_originairportcode")].trim(),
-                    values[headerMap.get("OBL2_destinationairportcode")].trim(),
-                    values[headerMap.get("OBL2_mkt_carrier")].trim(),
+                        values[headerMap.get("OBL1_originairportcode")].trim(),
+                        values[headerMap.get("OBL1_destinationairportcode")].trim(),
+                        obl1MktCarrier,
 
-                    values[headerMap.get("IBL1_originairportcode")].trim(),
-                    values[headerMap.get("IBL1_destinationairportcode")].trim(),
-                    values[headerMap.get("IBL1_mkt_carrier")].trim(),
+                        values[headerMap.get("OBL2_originairportcode")].trim(),
+                        values[headerMap.get("OBL2_destinationairportcode")].trim(),
+                        obl2MktCarrier,
 
-                    values[headerMap.get("IBL2_originairportcode")].trim(),
-                    values[headerMap.get("IBL2_destinationairportcode")].trim(),
-                    values[headerMap.get("IBL2_mkt_carrier")].trim()
-            );
+                        values[headerMap.get("IBL1_originairportcode")].trim(),
+                        values[headerMap.get("IBL1_destinationairportcode")].trim(),
+                        ibl1MktCarrier,
+
+                        values[headerMap.get("IBL2_originairportcode")].trim(),
+                        values[headerMap.get("IBL2_destinationairportcode")].trim(),
+                        ibl2MktCarrier
+                );
+            }
+            return null;
         } catch (Exception e) {
             return null;
         }
