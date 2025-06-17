@@ -186,9 +186,9 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
 
                 //TODO: Uncomment this when reading mismatched tax line numbers. Keep it commented to run all the lines.
                 // Skip lines not in the mismatch list
-                if (!misMatchTaxLineNumbers.contains(lineNumber)) {
+                /*if (!misMatchTaxLineNumbers.contains(lineNumber)) {
                     continue;
-                }
+                }*/
 
                 List<String> lineList = new ArrayList<>(Arrays.asList(line));
                 lineList.add(String.valueOf(lineNumber));
