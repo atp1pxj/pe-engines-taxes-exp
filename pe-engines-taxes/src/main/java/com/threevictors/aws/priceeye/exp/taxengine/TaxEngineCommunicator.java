@@ -24,7 +24,6 @@ import java.time.temporal.ChronoUnit;
 
 public class TaxEngineCommunicator {
 
-    //private final static Log log = LogFactory.getLog(TaxEngineCommunicator.class);
     private static final Logger log = LogManager.getLogger(TaxEngineCommunicator.class);
 
     private final static String URI = "http://tax-sfe-service.engines-stg.use1.atpco.local/tax";

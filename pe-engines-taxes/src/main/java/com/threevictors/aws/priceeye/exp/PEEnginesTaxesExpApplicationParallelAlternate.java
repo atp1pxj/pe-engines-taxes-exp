@@ -34,7 +34,6 @@ import java.io.FileReader;
 
 public class PEEnginesTaxesExpApplicationParallelAlternate {
 
-    //private final static Log log = LogFactory.getLog(PEEnginesTaxesExpApplicationParallelAlternate.class);
     private static final Logger log = LogManager.getLogger(PEEnginesTaxesExpApplicationParallelAlternate.class);
 
 
@@ -51,9 +50,6 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
 
     private Map<String, X1TaxRecordDataPoints> x1TaxRecordDataPointsMap;
 
-    //TODO: this might not be needed.
-    private Map<String, Double> pfcTaxMap;
-
     private BlockingQueue<PEItinerary> queue;
     private ExecutorService executor;
     private CountDownLatch latch;
@@ -61,22 +57,16 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
     private TaxEngineCommunicator taxEngineCommunicator;
     private PFCTaxEngineCommunicator pfcTaxEngineCommunicator;
 
-    //19 values - After WG, WY fix, the count got reduced to 19.
-    // values resolved (5) are 838, 3158, 4188, 4253, 5320, 6325
-    /*List<Integer> misMatchTaxLineNumbers = Arrays.asList(
-            2368, 2492, 3189, 3195, 3880, 4255, 4268, 4751, 4782,
-            4928, 5217, 5579, 5750, 6012, 6230, 6609, 6615, 6618, 6642
-    );*/
-
-    //List of mismatched tax line numbers with connections
+    //List of mismatched tax line numbers with connections. Depends on the source file read from the command line argument.
     List<Integer> misMatchTaxLineNumbers = Arrays.asList(
-            //22
-            //50
-            //147
-            //58
-            //, 23, 30, 35, 36, 39, 40, 42, 43, 49, 50, 52, 53, 56, 57, 58, 59,
-            //69, 70, 71, 72, 98, 99, 112, 114, 130, 131, 135, 138, 140, 141, 142,
-            //143, 156, 157, 158, 160, 161, 167, 168, 169, 172
+            //US AND XF taxes 10 lines
+            //288, 419, 422, 477, 478, 484, 495, 635, 649, 662
+
+            //OI taxes 8 lines - openjaw removed
+            //2, 20, 411, 593, 594, 911, 912, 1316
+
+            //WY taxes 8 lines
+            4392, 4393, 4394, 4395, 4396, 4397, 4398, 4399
     );
 
     public PEEnginesTaxesExpApplicationParallelAlternate() throws Exception {
@@ -91,10 +81,7 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
         log.info("Loading X1 tax record data points from redis dump file...");
         long startTime = System.currentTimeMillis();
 
-        /*x1TaxRecordDataPointsMap = Collections.unmodifiableMap(
-                x1TaxRecordDataPointsLoader.loadTaxRecordDataPoints("pe-engines-taxes/src/main/resources/xldatapoints_all_taxrecs_from_redis_all_20250515.txt")
-        );*/
-
+        // Load the X1 tax record data points from the resource file
         InputStream inputStream = getClass().getClassLoader().getResourceAsStream("xldatapoints_all_taxrecs_from_redis_all_20250611.txt");
         if (inputStream == null) {
             throw new FileNotFoundException("Resource not found");
@@ -104,14 +91,6 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
         );
 
         log.info("DONE Loading X1 tax record data points from redis dump file. Time taken: " + (System.currentTimeMillis() - startTime) + " ms");
-
-        //TODO: this would not be needed
-       /* log.info("Loading PFC tax record data points from redis dump file...");
-        startTime = System.currentTimeMillis();
-        pfcTaxMap = Collections.unmodifiableMap(
-                PFCAmountsLoader.parseAndLoadPFCTaxesRedisData("pe-engines-taxes/src/main/resources/pfcRedisDump_20250520.txt")
-        );
-        log.info("DONE Loading PFC tax record data points from redis dump file. Time taken: " + (System.currentTimeMillis() - startTime) + " ms");*/
     }
 
 
@@ -207,9 +186,9 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
 
                 //TODO: Uncomment this when reading mismatched tax line numbers. Keep it commented to run all the lines.
                 // Skip lines not in the mismatch list
-                /*if (!misMatchTaxLineNumbers.contains(lineNumber)) {
+                if (!misMatchTaxLineNumbers.contains(lineNumber)) {
                     continue;
-                }*/
+                }
 
                 List<String> lineList = new ArrayList<>(Arrays.asList(line));
                 lineList.add(String.valueOf(lineNumber));
@@ -275,7 +254,7 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
 
         PEEnginesTaxesExpApplicationParallelAlternate currentApp = new PEEnginesTaxesExpApplicationParallelAlternate();
 
-        // Source file path with non-stop itineraries
+        //Non-stop itineraries - Source file path with
         //File source = new File("pe-engines-taxes/src/main/resources/PEItineraries_from_athena_csv_parallel/generated_output_txts/PEItins_parallel_unique_output.txt");
 
         //Note: Original local file path
