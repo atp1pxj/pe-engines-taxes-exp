@@ -62,11 +62,16 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
             //US AND XF taxes 10 lines
             //288, 419, 422, 477, 478, 484, 495, 635, 649, 662
 
+            //XF top 10 lines
+            //3, 28, 29, 30, 34, 35, 36, 37, 38, 41
+            //2979
+
             //OI taxes 8 lines - openjaw removed
             //2, 20, 411, 593, 594, 911, 912, 1316
 
+
             //WY taxes 8 lines
-            4392, 4393, 4394, 4395, 4396, 4397, 4398, 4399
+            //4392, 4393, 4394, 4395, 4396, 4397, 4398, 4399
     );
 
     public PEEnginesTaxesExpApplicationParallelAlternate() throws Exception {
@@ -175,7 +180,7 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
 
     //TODO: Uncomment this only when misMatchTaxLineNumbers is used.
     //Send only the list of mismatched line numbers to the readSourceFile method
-    private void readSourceFile(File source, String ticketDate) {
+    private void readSourceFile(File source, String ticketDate, boolean arePEItinsOneWay) {
         // Read the CSV directly and put it into the queue
         try (CSVReader reader = new CSVReader(new FileReader(source))) {
             String[] line;
@@ -184,7 +189,8 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
             while ((line = reader.readNext()) != null) {
                 lineNumber++;
 
-                //TODO: Uncomment this when reading mismatched tax line numbers. Keep it commented to run all the lines.
+                //TODO: Uncomment this when reading mismatched tax line numbers.
+                // Otherwise keep it commented to run all the lines.
                 // Skip lines not in the mismatch list
                 /*if (!misMatchTaxLineNumbers.contains(lineNumber)) {
                     continue;
@@ -196,12 +202,19 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                 //Non-stop itineraries only
                 //PEItinerary itinerary = PEItinerariesLoader.parsePEItineraryLine(lineList);
 
-                // Itineraries with connections
-                PEItinerary itinerary = PEItinerariesLoader.parsePEItineraryLineWithConnections(lineList);
+                if (!arePEItinsOneWay) {
+                    // Itineraries with connections
+                    PEItinerary itinerary = PEItinerariesLoader.parsePEItineraryLineWithConnections(lineList);
 
-                // Set the ticket date on the itinerary object. Assign it to the duration field for the time being.
-                itinerary.setDuration(Integer.parseInt(ticketDate));
-                queue.put(itinerary);
+                    // Set the ticket date on the itinerary object. Assign it to the duration field for the time being.
+                    itinerary.setDuration(Integer.parseInt(ticketDate));
+                    queue.put(itinerary);
+                }
+                else {
+                    //From the same line, create two itineraries - one for outbound and one for inbound. Each will be treated as a one-way itinerary.
+                    //TODO: Might have to do this later or delete.
+                }
+
             }
 
             // Signal EOF to workers
@@ -239,17 +252,26 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
         String uniqueMktsPEItinsFilePath = args[1];
 
         int lineNumber = -1; // Default value for optional argument
+
+        boolean arePEItinsOneWay = false; // Default to send as round trip
+
         if (args.length > 2) {
-            try {
-                lineNumber = Integer.parseInt(args[2]);
-            } catch (NumberFormatException e) {
-                throw new IllegalArgumentException("Optional argument 'lineNumber' must be an integer.");
+            //3rd optional argument to indicate whether to send as one-way or round trip
+            arePEItinsOneWay = Boolean.parseBoolean(args[2]);
+
+            if(args.length > 3) {
+                try {
+                    lineNumber = Integer.parseInt(args[3]);
+                } catch (NumberFormatException e) {
+                    throw new IllegalArgumentException("Optional argument 'lineNumber' must be an integer.");
+                }
             }
         }
 
         // Log the arguments for verification
         log.info("Ticket Date: " + ticketDate);
         log.info("uniqueMktsPEItinsFilePath: " + uniqueMktsPEItinsFilePath);
+        log.info("arePEItinsOneWay: " + arePEItinsOneWay);
         log.info("Line Number: " + (lineNumber == -1 ? "Not provided" : lineNumber));
 
         PEEnginesTaxesExpApplicationParallelAlternate currentApp = new PEEnginesTaxesExpApplicationParallelAlternate();
@@ -265,7 +287,7 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
         //currentApp.readSourceFile(source, lineNumber, ticketDate);
 
         //Uncomment when reading mismatched tax line numbers
-        currentApp.readSourceFile(source, ticketDate);
+        currentApp.readSourceFile(source, ticketDate, arePEItinsOneWay);
         currentApp.await();
 
         log.info("✅ Processing complete.");
@@ -393,25 +415,46 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
         return totalFlatTaxAmount.add(totalTaxOnTaxAmount);
     }
 
+
     private BigDecimal calculatePFCTaxes(PEItinerary currentItin, String queryId) {
 
         AtomicReference<BigDecimal> pfcTaxes = new AtomicReference<>(BigDecimal.ZERO);
 
-        RootPFCResponse rootPFCResponse = pfcTaxEngineCommunicator.sendRequest(currentItin, queryId);
+        List<PEItinerary> pfcOWItineraries = new ArrayList<>();
 
-        if (rootPFCResponse != null && rootPFCResponse.getPfcResponse() != null
-                && rootPFCResponse.getPfcResponse().getCharges() != null
-                && !rootPFCResponse.getPfcResponse().getCharges().isEmpty()) {
-            // retrieve PFC taxes from the response and add them to the total
-            List<Charge> pfcCharges = rootPFCResponse.getPfcResponse().getCharges();
-            pfcCharges.forEach(airportPfcCharge -> {
-                BigDecimal taxAmount = BigDecimal.valueOf(airportPfcCharge.getCharge());
-                pfcTaxes.set(pfcTaxes.get().add(taxAmount));
-            });
+        //create two oneway itineraries from currentItin - one for outbound and one for inbound.
+        PEItinerary obOwItin = PEItinerary.copy(currentItin);
+        //Empty inbound legs for outbound itinerary
+        obOwItin.setInboundLegs(List.of());
+
+        PEItinerary ibOwItin = PEItinerary.copy(currentItin);
+        //set inbound legs as outbound for inbound OW PFC itinerary
+        ibOwItin.setOutboundLegs(currentItin.getInboundLegs());
+        ibOwItin.setInboundLegs(List.of());
+
+        pfcOWItineraries.add(obOwItin);
+        pfcOWItineraries.add(ibOwItin);
+
+        for(PEItinerary owItin : pfcOWItineraries) {
+
+            RootPFCResponse rootPFCResponse = pfcTaxEngineCommunicator.sendRequest(owItin, queryId);
+
+            if (rootPFCResponse != null && rootPFCResponse.getPfcResponse() != null
+                    && rootPFCResponse.getPfcResponse().getCharges() != null
+                    && !rootPFCResponse.getPfcResponse().getCharges().isEmpty()) {
+                // retrieve PFC taxes from the response and add them to the total
+                List<Charge> pfcCharges = rootPFCResponse.getPfcResponse().getCharges();
+                pfcCharges.forEach(airportPfcCharge -> {
+                    BigDecimal taxAmount = BigDecimal.valueOf(airportPfcCharge.getCharge());
+                    pfcTaxes.set(pfcTaxes.get().add(taxAmount));
+                });
+            }
+            else {
+                //Temp'ly commented out the log statement to avoid cluttering the logs with empty PFC responses due to the split.
+                //log.warn("Null or Empty PFC Response for itinerary: PFC-" + logRoute(owItin));
+            }
         }
-        else {
-            log.warn("Null or Empty PFC Response for itinerary: PFC-" + logRoute(currentItin));
-        }
+
         return pfcTaxes.get();
     }
 

@@ -135,7 +135,15 @@ public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEng
 
         //Non-leg data
         //TODO: What field on the PEItinerary is the TripType? Not able to find it on the legs either
-        ctx.setTripType("ROUND_TRIP");
+        //ctx.setTripType("ROUND_TRIP");
+
+        //Newly added logic to determine trip type based on inbound legs
+        if(peItinerary.getInboundLegs()!= null && !peItinerary.getInboundLegs().isEmpty()) {
+            ctx.setTripType("ROUND_TRIP");
+        } else {
+            ctx.setTripType("ONE_WAY");
+        }
+
         ctx.setFareOwningCarrier(peItinerary.getOutboundLegs().get(0).getMarketingCarrier());
 
         //TODO: What field on the PEItinerary is the ticketDate? Not able to find it on the legs either. Should it be today's date?
