@@ -80,6 +80,12 @@ public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEng
                 legData.setOperatedCarrier( skinnyCacheFlightRecord.getOperatingCarrierCode() );
                 legData.setOperatedFlightNo(skinnyCacheFlightRecord.getOperatingCarrierFlightNumber());
             }
+            else {//If codeshare is 0 or operating carrier code is null or empty? Engines will need values for operated carrier and flight number.
+                    //Default it to marketed carrier and flight number from the skinnyCacheFlightRecord.
+                    //Don't set it to blank operated carrier and 0 operated flight number as it will result in incorrect tax values (tested already).
+                    legData.setOperatedCarrier(skinnyCacheFlightRecord.getCarrierCode());
+                    legData.setOperatedFlightNo(skinnyCacheFlightRecord.getFlightNumber());
+            }
         }
 
         if (lastLeg) {
