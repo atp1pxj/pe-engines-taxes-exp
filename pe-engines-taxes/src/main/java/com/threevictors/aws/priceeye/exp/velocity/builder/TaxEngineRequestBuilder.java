@@ -76,8 +76,10 @@ public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEng
             legData.setOperatedFlightNo(0);
         }
         else {
-            legData.setOperatedFlightNo(skinnyCacheFlightRecord.getOperatingCarrierFlightNumber());
-            legData.setOperatedCarrier(skinnyCacheFlightRecord.getDuplicateCarrier1() != null ? skinnyCacheFlightRecord.getDuplicateCarrier1() : "");
+            if ( skinnyCacheFlightRecord.getCodeshare() == 1 && skinnyCacheFlightRecord.getOperatingCarrierCode() != null && !skinnyCacheFlightRecord.getOperatingCarrierCode().isEmpty() ) {
+                legData.setOperatedCarrier( skinnyCacheFlightRecord.getOperatingCarrierCode() );
+                legData.setOperatedFlightNo(skinnyCacheFlightRecord.getOperatingCarrierFlightNumber());
+            }
         }
 
         if (lastLeg) {
