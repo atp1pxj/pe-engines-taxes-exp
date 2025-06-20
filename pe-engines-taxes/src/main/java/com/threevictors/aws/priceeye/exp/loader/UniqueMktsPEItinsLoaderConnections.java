@@ -174,6 +174,7 @@ public class UniqueMktsPEItinsLoaderConnections {
             }
             return duration.toHours();
         } catch (Exception e) {
+            e.printStackTrace();
             return 0;
         }
     }
