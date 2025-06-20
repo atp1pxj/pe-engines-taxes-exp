@@ -169,14 +169,14 @@ public class UniqueMktsPEItinsLoaderConnections {
 
             // Is the outbound connecting airport in the US
             if (isUSAirport( obl1Leg.getDestinationAirportCode() )) {
-                if (hoursBetween(obl1Leg, obl2Leg) > 12) {
+                if (hoursBetween(obl1Leg, obl2Leg) >= 12) {
                     return null;
                 }
             }
 
             // Is the inbound connecting airport in the US
             if (isUSAirport( ibl1Leg.getDestinationAirportCode() )) {
-                if (hoursBetween(ibl1Leg, ibl2Leg) > 12) {
+                if (hoursBetween(ibl1Leg, ibl2Leg) >= 12) {
                     return null;
                 }
             }
