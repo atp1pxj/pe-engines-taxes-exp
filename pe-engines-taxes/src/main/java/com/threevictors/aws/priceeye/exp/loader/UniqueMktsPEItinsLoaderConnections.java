@@ -85,8 +85,7 @@ public class UniqueMktsPEItinsLoaderConnections {
     }
 
     private static String generateKey(String[] values, Map<String, Integer> headerMap) {
-        //Note: To toss out all the multicarrier itineraries,
-        // we need to ensure that all the marketed carriers in each of the legs are the same.
+
         try {
             String obl1MktCarrier = values[headerMap.get("OBL1_mkt_carrier")].trim();
             String obl2MktCarrier = values[headerMap.get("OBL2_mkt_carrier")].trim();
@@ -97,6 +96,7 @@ public class UniqueMktsPEItinsLoaderConnections {
             // Outbound stopover check
             String obl1Dest = values[headerMap.get("OBL1_destinationairportcode")].trim();
             String obl2Orig = values[headerMap.get("OBL2_originairportcode")].trim();
+
             boolean oblStopoverUS = isUSAirport(obl1Dest) && isUSAirport(obl2Orig);
             if (oblStopoverUS) {
                 String obl1ArrDate = values[headerMap.get("OBL1_arrivedate")].trim();
@@ -122,10 +122,22 @@ public class UniqueMktsPEItinsLoaderConnections {
             }
             // --- End 12 hour stopover logic ---
 
-            if (obl1MktCarrier.equalsIgnoreCase(obl2MktCarrier) &&
-                    obl1MktCarrier.equalsIgnoreCase(ibl1MktCarrier) &&
-                    obl1MktCarrier.equalsIgnoreCase(ibl2MktCarrier)) {
-                return String.join("-",
+            //Note: To toss out all the multicarrier itineraries,
+            // we need to ensure that all the marketed carriers in each of the legs are the same.
+            if (!obl1MktCarrier.equalsIgnoreCase(obl2MktCarrier) || !obl1MktCarrier.equalsIgnoreCase(ibl1MktCarrier) || !obl1MktCarrier.equalsIgnoreCase(ibl2MktCarrier)) {
+                return null;
+            }
+
+            // Toss toothy grins. These are like OpenJaws, in that we don't return to the same airport. However, the airport is in the same city
+            // Seems to cause problems with PFC calculations
+            String obl1Orig = values[headerMap.get("OBL1_originairportcode")].trim();
+            String ibl2Dest = values[headerMap.get("IBL2_destinationairportcode")].trim();
+
+            if (!obl1Orig.equalsIgnoreCase(ibl2Dest)) {
+                return null;
+            }
+
+            return String.join("-",
                         values[headerMap.get("itin_validatingcarrier")].trim(),
 
                         values[headerMap.get("OBL1_originairportcode")].trim(),
@@ -144,8 +156,6 @@ public class UniqueMktsPEItinsLoaderConnections {
                         values[headerMap.get("IBL2_destinationairportcode")].trim(),
                         ibl2MktCarrier
                 );
-            }
-            return null;
         } catch (Exception e) {
             return null;
         }

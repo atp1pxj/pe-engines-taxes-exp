@@ -189,6 +189,8 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
             while ((line = reader.readNext()) != null) {
                 lineNumber++;
 
+                if (line[0].equals("itin_validatingcarrier")) continue;
+
                 //TODO: Uncomment this when reading mismatched tax line numbers.
                 // Otherwise keep it commented to run all the lines.
                 // Skip lines not in the mismatch list
