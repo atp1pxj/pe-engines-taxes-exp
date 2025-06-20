@@ -85,7 +85,7 @@ public class UniqueMktsPEItinsLoaderConnections {
     }
 
     private static String generateKey(String[] values, Map<String, Integer> headerMap) {
-        //Note: To toss out all the open jaw itineraries,
+        //Note: To toss out all the multicarrier itineraries,
         // we need to ensure that all the marketed carriers in each of the legs are the same.
         try {
             String obl1MktCarrier = values[headerMap.get("OBL1_mkt_carrier")].trim();
@@ -164,11 +164,15 @@ public class UniqueMktsPEItinsLoaderConnections {
         try {
             String dt1 = date1 + " " + time1;
             String dt2 = date2 + " " + time2;
-            java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+            java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HHmm");
             java.time.LocalDateTime ldt1 = java.time.LocalDateTime.parse(dt1, formatter);
             java.time.LocalDateTime ldt2 = java.time.LocalDateTime.parse(dt2, formatter);
+            // Calculate the absolute duration between the two times
             java.time.Duration duration = java.time.Duration.between(ldt1, ldt2);
-            return Math.abs(duration.toHours());
+            if (duration.isNegative()) {
+                duration = duration.negated();
+            }
+            return duration.toHours();
         } catch (Exception e) {
             return 0;
         }
