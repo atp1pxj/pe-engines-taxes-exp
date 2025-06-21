@@ -42,8 +42,8 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
     //Made up string to identify the tax on tax
     private static final String TAX_ON_TAX = "tax on tax";
 
-    private static final int QUEUE_CAPACITY = 2000; // Tune as needed
-    private static final int THREAD_COUNT = Runtime.getRuntime().availableProcessors();
+    private static final int QUEUE_CAPACITY = 10000; // Increased from 2000 to handle more items
+    private static final int THREAD_COUNT = Runtime.getRuntime().availableProcessors() * 2; // Doubled thread count to handle I/O-bound operations
 
     private static final String QUERY_ID_PREFIX_3V = "3v-";
 
@@ -122,7 +122,7 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                             log.error("Null response for itinerary: " + itinerary);
                         }
 
-                        Thread.sleep(10); // Throttle
+                        // Removed sleep to maximize throughput
                         itinerary = queue.take();
                     } while(true); //End of while
                 } catch (Exception e) {
@@ -153,7 +153,7 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                 lineList.add(String.valueOf(lineNumber));
 
                 //TODO: Need to refactor all this later to have a single method to parse itineraries (non-stop and with connections).
-                
+
                 //Note: Original with non-stops. Don't delete
                 //non-stop itineraries only
                 //PEItinerary itinerary = PEItinerariesLoader.parsePEItineraryLineNonStop(lineList);
@@ -181,15 +181,20 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
     //TODO: Uncomment this only when misMatchTaxLineNumbers is used.
     //Send only the list of mismatched line numbers to the readSourceFile method
     private void readSourceFile(File source, String ticketDate, boolean arePEItinsOneWay) {
-        // Read the CSV directly and put it into the queue
+        // Use a separate thread pool for parsing to avoid blocking the main thread
+        int parserThreads = Math.max(2, Runtime.getRuntime().availableProcessors() / 2);
+        ExecutorService parserExecutor = Executors.newFixedThreadPool(parserThreads);
+
+        // Use a larger buffer for reading the file
         try (CSVReader reader = new CSVReader(new FileReader(source))) {
             String[] line;
             int lineNumber = 0;
+            List<Future<?>> futures = new ArrayList<>();
 
             while ((line = reader.readNext()) != null) {
                 lineNumber++;
 
-                if (line[0].equals("itin_validatingcarrier")) continue;
+                if (line[0].equals("validatingcarrier")) continue;
 
                 //TODO: Uncomment this when reading mismatched tax line numbers.
                 // Otherwise keep it commented to run all the lines.
@@ -198,25 +203,48 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                     continue;
                 }*/
 
-                List<String> lineList = new ArrayList<>(Arrays.asList(line));
-                lineList.add(String.valueOf(lineNumber));
+                final String[] currentLine = line.clone(); // Create a copy for the thread
+                final int currentLineNumber = lineNumber;
 
-                //Non-stop itineraries only
-                //PEItinerary itinerary = PEItinerariesLoader.parsePEItineraryLine(lineList);
+                // Submit parsing task to the parser thread pool
+                futures.add(parserExecutor.submit(() -> {
+                    try {
+                        List<String> lineList = new ArrayList<>(Arrays.asList(currentLine));
+                        lineList.add(String.valueOf(currentLineNumber));
 
-                if (!arePEItinsOneWay) {
-                    // Itineraries with connections
-                    PEItinerary itinerary = PEItinerariesLoader.parsePEItineraryLineWithConnections(lineList);
+                        if (!arePEItinsOneWay) {
+                            // Itineraries with connections
+                            PEItinerary itinerary = PEItinerariesLoader.parsePEItineraryLineWithConnections(lineList);
 
-                    // Set the ticket date on the itinerary object. Assign it to the duration field for the time being.
-                    itinerary.setDuration(Integer.parseInt(ticketDate));
-                    queue.put(itinerary);
+                            // Set the ticket date on the itinerary object. Assign it to the duration field for the time being.
+                            itinerary.setDuration(Integer.parseInt(ticketDate));
+                            queue.put(itinerary);
+                        }
+                        else {
+                            //From the same line, create two itineraries - one for outbound and one for inbound. Each will be treated as a one-way itinerary.
+                            //TODO: Might have to do this later or delete.
+                        }
+                    } catch (Exception e) {
+                        log.error("Error parsing line " + currentLineNumber, e);
+                    }
+                }));
+            }
+
+            // Wait for all parsing tasks to complete
+            for (Future<?> future : futures) {
+                try {
+                    future.get();
+                } catch (Exception e) {
+                    log.error("Error waiting for parsing task", e);
                 }
-                else {
-                    //From the same line, create two itineraries - one for outbound and one for inbound. Each will be treated as a one-way itinerary.
-                    //TODO: Might have to do this later or delete.
-                }
+            }
 
+            // Shutdown the parser executor
+            parserExecutor.shutdown();
+            try {
+                parserExecutor.awaitTermination(1, TimeUnit.MINUTES);
+            } catch (InterruptedException e) {
+                log.error("Error shutting down parser executor", e);
             }
 
             // Signal EOF to workers

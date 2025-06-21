@@ -23,7 +23,7 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <!--<version.priceeyev2>0.113</version.priceeyev2>-->
         <!--<version.priceeyev2>0.121-SNAPSHOT</version.priceeyev2>-->
-        <version.priceeyev2>0.121</version.priceeyev2>
+        <version.priceeyev2>0.122</version.priceeyev2>
 
 
         <!-- greater than version 3.1 maven required -->
@@ -83,6 +83,14 @@
         - Used during the build process when Maven needs to resolve dependencies
     -->
     <repositories>
+        <!-- Maven Central Repository -->
+        <repository>
+            <id>central</id>
+            <name>Maven Central</name>
+            <url>https://repo.maven.apache.org/maven2</url>
+            <releases><enabled>true</enabled></releases>
+            <snapshots><enabled>false</enabled></snapshots>
+        </repository>
         <!-- repo config for priceeye related artifacts-->
         <repository>
             <id>atpco-3v-3V-ATP</id>
@@ -380,6 +388,24 @@
 
 
     <dependencies>
+        <!-- Apache Spark dependencies -->
+        <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-core_2.12</artifactId>
+            <version>3.3.2</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.esotericsoftware</groupId>
+                    <artifactId>kryo-shaded</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-sql_2.12</artifactId>
+            <version>3.3.2</version>
+        </dependency>
+
         <!-- Pull the priceeye-data module (jar type) from maven repo. Not priceeye parent (pom type)-->
         <dependency>
             <groupId>com.threevictors.aws.priceeye</groupId>
@@ -517,7 +543,10 @@
 <!--            <artifactId>log4j-slf4j-impl</artifactId>-->
 <!--            <version>2.24.3</version>-->
 <!--        </dependency>-->
-
+        <dependency>
+            <groupId>com.esotericsoftware</groupId>
+            <artifactId>kryo</artifactId>
+        </dependency>
 
     </dependencies>
 
@@ -612,6 +641,12 @@
             </dependency>
 
             <!-- END AWS -->
+
+            <dependency>
+                <groupId>com.esotericsoftware</groupId>
+                <artifactId>kryo</artifactId>
+                <version>5.5.0</version>
+            </dependency>
 
         </dependencies>
     </dependencyManagement>
