@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN">
+	<Appenders>
+		<!--<Console name="STDOUT" target="SYSTEM_OUT">
+			&lt;!&ndash;<PatternLayout pattern="%d{ISO8601} %-5p [%c{1}] %t %m%n"/>&ndash;&gt;
+			<PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss} %-5p %c{1}:%L - %msg%n"/>
+		</Console>-->
+
+		<Console name="Console" target="SYSTEM_OUT">
+			<PatternLayout pattern="%d{ISO8601} %-5p [%c{1}] %t %m%n" />
+		</Console>
+        <File name="FileLogger" fileName="app.log">
+			<PatternLayout pattern="%d{ISO8601} %-5p [%c{1}] %t %m%n"/>
+		</File>
+	</Appenders>
+
+	<Loggers>
+		<Logger name="com.threevictors" level="info"/>
+
+		<Logger name="com.threevictors.aws.priceeye"   level="debug"/>
+		<Logger name="com.threevictors"   level="info"/>
+		<Logger name="com.lambdaworks.redis.EpollProvider" level="off"/>
+		<Logger name="com.lambdaworks.redis.KqueueProvider" level="off"/>
+		<Logger name="com.threevictors.framework.database.C3P0DataSourceFactory" level="off"/>
+		<Logger name="com"                level="warn"/>
+		<Logger name="edu"                level="warn"/>
+		<Logger name="net"                level="warn"/>
+		<Logger name="org"                level="warn"/>
+		<Logger name="io"                 level="warn"/>
+		<Logger name="software"           level="warn"/>
+
+		<Root level="info">
+			<!--<AppenderRef ref="STDOUT"/>-->
+			<AppenderRef ref="Console" />
+			<AppenderRef ref="FileLogger"/>
+		</Root>
+	</Loggers>
+</Configuration>

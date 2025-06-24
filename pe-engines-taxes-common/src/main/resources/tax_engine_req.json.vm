@@ -1,0 +1,63 @@
+{
+  "itinerary": {
+    "taxLegs": [
+      #foreach($leg in ${ctx.legs})
+        {
+          "departs": "${leg.departsDateTime}",
+          "arrives": "${leg.arrivesDateTime}",
+          "legId": ${foreach.count},
+          "origin": {
+            "type": "P",
+            "code": "${leg.originCode}"
+          },
+          "destination": {
+            "type": "P",
+            "code": "${leg.destinationCode}"
+          },
+          "marketedCarrier": "${leg.marketedCarrier}",
+          "marketedFlightNo": ${leg.marketedFlightNo},
+          "operatedCarrier": "$!{leg.operatedCarrier}",
+          "operatedFlightNo": ${leg.operatedFlightNo},
+          #if($leg.cabin && !$leg.cabin.isEmpty()) "cabin": "${leg.cabin}",#end
+          "legIndicator": "F",
+          "fareIndex": ${leg.fareIndex},
+            #if(${leg.isTransferTypeLeg}) "transferType": "${leg.transferType}",#end
+          "involuntary": false
+        }#if($foreach.hasNext),#end
+      #end
+    ]
+  },
+  "fares": [
+    {
+      "privateTariff": false,
+      "fareOwningCarrier": "${ctx.fareOwningCarrier}",
+      "tripType": "${ctx.tripType}",
+    "fareAmount": #if(${ctx.tripType} == "ONE_WAY")100.00#{else}50.00#end,
+      "fareCurrency": "${ctx.currency}"
+    }#if(${ctx.tripType} == "ROUND_TRIP"),
+      {
+        "privateTariff": false,
+        "fareOwningCarrier": "${ctx.fareOwningCarrier}",
+        "tripType": "${ctx.tripType}",
+        "fareAmount": 50.00,
+        "fareCurrency": "${ctx.currency}"
+      }#end
+  ],
+  "ticketDate": "${ctx.ticketDate}",
+  "validatingCarrier": "${ctx.validatingCarrier}",
+  "pointOfSale": {
+    "type": "N",
+    "code": "US"
+  },
+  "pointOfTicketing": {
+    "type": "N",
+    "code": "US"
+  },
+"faresTotal": 100.00,
+  "feesTotal": 0.00,
+  "ticketCurrency": "${ctx.currency}",
+  "responseCurrency": "${ctx.currency}",
+  "enableDiagnostics": true,
+  "includeExemptSequence": false,
+  "involuntary": false
+}

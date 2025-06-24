@@ -1,0 +1,29 @@
+{
+  "legs": [
+    #foreach($leg in ${ctx.legs})
+      {
+          "origin": {
+            "type": "P",
+            "code": "${leg.originCode}"
+          },
+          "destination": {
+            "type": "P",
+            "code": "${leg.destinationCode}"
+          },
+          "marketedCarrier": "${leg.marketedCarrier}",
+          "marketedFlightNo": ${leg.marketedFlightNo},
+          "operatedCarrier": "$!{leg.operatedCarrier}",
+          "operatedFlightNo": ${leg.operatedFlightNo},
+          "equipmentTypeCode": "7M8"
+      }#if($foreach.hasNext),#end
+    #end
+  ],
+  "passengerType": "ADT",
+  "pointOfTicketing": {
+    "type": "N",
+    "code": "US"
+  },
+  "ticketingCarrier": "${ctx.ticketingCarrier}",
+  "ticketCurrency": "USD",
+  "ticketDate": "${ctx.ticketDate}"
+}
