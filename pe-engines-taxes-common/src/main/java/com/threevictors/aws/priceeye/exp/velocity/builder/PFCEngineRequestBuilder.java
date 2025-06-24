@@ -4,15 +4,10 @@ import com.threevictors.aws.data.aws.RawLeg;
 import com.threevictors.aws.data.priceeye.PEItinerary;
 import com.threevictors.aws.priceeye.exp.velocity.data.PFCEngineReqVelocityData;
 import com.threevictors.aws.priceeye.exp.velocity.data.PFCTaxLegVelocityData;
-import com.threevictors.aws.priceeye.exp.velocity.data.TaxEngineReqVelocityData;
-import com.threevictors.aws.priceeye.exp.velocity.data.TaxLegVelocityData;
 import lombok.Data;
 
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 @Data
 public class PFCEngineRequestBuilder extends AbstractEngineRequestBuilder<PFCEngineReqVelocityData> {

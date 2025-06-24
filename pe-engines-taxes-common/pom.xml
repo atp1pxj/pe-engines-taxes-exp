@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.threevictors.aws.priceeye.exp</groupId>
+        <artifactId>pe-engines-taxes-exp</artifactId>
+        <version>0.01-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>pe-engines-taxes-common</artifactId>
+    <packaging>jar</packaging>
+    <name>pe-engines-taxes-common</name>
+
+    <dependencies>
+        <!-- PriceEye dependencies -->
+        <dependency>
+            <groupId>com.threevictors.aws.priceeye</groupId>
+            <artifactId>threevictors-priceeye-data</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.threevictors.aws.priceeye</groupId>
+            <artifactId>threevictors-priceeye-common</artifactId>
+        </dependency>
+
+        <!-- Metadata module -->
+        <dependency>
+            <groupId>com.threevictors</groupId>
+            <artifactId>threevictors-common-database-data-access-aurora-metadata</artifactId>
+        </dependency>
+
+        <!-- Database connectivity -->
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+        </dependency>
+
+        <!-- Logging dependencies -->
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+        </dependency>
+
+        <!-- Velocity dependencies -->
+        <dependency>
+            <groupId>org.apache.velocity</groupId>
+            <artifactId>velocity-engine-core</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>${maven.compiler.source}</source>
+                    <target>${maven.compiler.target}</target>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
