@@ -2,6 +2,7 @@ package com.threevictors.aws.priceeye.exp.taxengine;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.threevictors.aws.configreader.configuration.reader.heavy.ConfigurationReader;
 import com.threevictors.aws.data.priceeye.PEItinerary;
 import com.threevictors.aws.priceeye.exp.model.taxengine.response.RootResponse;
 import com.threevictors.aws.priceeye.exp.velocity.builder.TaxEngineRequestBuilder;
@@ -21,21 +22,29 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import java.util.Properties;
 
 public class TaxEngineCommunicator {
 
     private static final Logger log = LogManager.getLogger(TaxEngineCommunicator.class);
 
-    private final static String URI = "http://tax-sfe-service.engines-stg.use1.atpco.local/tax";
     private HttpClient httpClient;
     private TaxEngineRequestBuilder taxEngineRequestBuilder;
     private Gson gson;
 
+    private String sfeTaxEngineUrl;
+
+
     public TaxEngineCommunicator() {
+
+        Properties p = ConfigurationReader.readProperties( "pe-engines-taxes.properties" );
+        sfeTaxEngineUrl = p.getProperty("sfe.tax.engine.url").trim();
+
         // Increase connection pool size to match the number of worker threads
         int connectionPoolSize = Runtime.getRuntime().availableProcessors() * 4; // Double the worker thread count for better throughput
         System.setProperty("jdk.httpclient.connectionPoolSize", String.valueOf(connectionPoolSize));
-        System.setProperty("jdk.httpclient.keepalive.timeout", "60"); // Increase keepalive timeout
+        System.setProperty("jdk.httpclient.keepalive.timeout"
+                , p.getProperty( "jdk.httpclient.keepalive.timeout", "60")); // Increase keepalive timeout
 
         // Configure HTTP client with optimized settings
         httpClient = HttpClient.newBuilder()
@@ -54,7 +63,7 @@ public class TaxEngineCommunicator {
     public RootResponse sendRequest(PEItinerary itinerary, String queryId ) {
 
         String request = taxEngineRequestBuilder.buildRequest( itinerary );
-        //log.info("LN: " + itinerary.getChannel() + " JSON Request to taxengines: " + request);
+        log.info("LN: " + itinerary.getChannel() + " JSON Request to taxengines: " + request);
 
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder();
         requestBuilder.setHeader("Content-Type", "application/json");
@@ -62,7 +71,7 @@ public class TaxEngineCommunicator {
         requestBuilder.setHeader("X-Correlation-ID", queryId);
 
         try {
-            requestBuilder.uri(new URI(URI));
+            requestBuilder.uri(new URI(sfeTaxEngineUrl));
         }
         catch (URISyntaxException use) {
             log.error("Error creating URI for TaxEngineCommunicator: " + use.getMessage());

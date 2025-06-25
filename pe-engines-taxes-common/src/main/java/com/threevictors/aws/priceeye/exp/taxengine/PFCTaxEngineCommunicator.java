@@ -2,6 +2,7 @@ package com.threevictors.aws.priceeye.exp.taxengine;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.threevictors.aws.configreader.configuration.reader.heavy.ConfigurationReader;
 import com.threevictors.aws.data.priceeye.PEItinerary;
 import com.threevictors.aws.priceeye.exp.model.pfcengine.response.RootPFCResponse;
 import com.threevictors.aws.priceeye.exp.velocity.builder.PFCEngineRequestBuilder;
@@ -22,26 +23,30 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
-
-
+import java.util.Properties;
 
 //TODO: Refactor this class and the TaxEngineCommunicator class to streamline the code and remove redundancy.
 public class PFCTaxEngineCommunicator {
 
-    //private final static Log log = LogFactory.getLog(PFCTaxEngineCommunicator.class);
     private static final Logger log = LogManager.getLogger(PFCTaxEngineCommunicator.class);
 
-    private final static String URI = "http://tax-sfe-service.engines-stg.use1.atpco.local/pfcEngine";
     private HttpClient httpClient;
 
     private PFCEngineRequestBuilder pfcEngineRequestBuilder;
     private Gson gson;
 
+    private String pfcTaxEngineUrl;
+
     public PFCTaxEngineCommunicator() {
+
+        Properties p = ConfigurationReader.readProperties( "pe-engines-taxes.properties" );
+        pfcTaxEngineUrl = p.getProperty("pfc.tax.engine.url").trim();
+
         // Increase connection pool size to match the number of worker threads
         int connectionPoolSize = Runtime.getRuntime().availableProcessors() * 4; // Double the worker thread count for better throughput
         System.setProperty("jdk.httpclient.connectionPoolSize", String.valueOf(connectionPoolSize));
-        System.setProperty("jdk.httpclient.keepalive.timeout", "60"); // Increase keepalive timeout
+        System.setProperty("jdk.httpclient.keepalive.timeout"
+                , p.getProperty( "jdk.httpclient.keepalive.timeout", "60")); // Increase keepalive timeout
 
         // Configure HTTP client with optimized settings
         httpClient = HttpClient.newBuilder()
@@ -67,7 +72,7 @@ public class PFCTaxEngineCommunicator {
         requestBuilder.setHeader("X-Correlation-ID", queryId);
 
         try {
-            requestBuilder.uri(new URI(URI));
+            requestBuilder.uri(new URI(pfcTaxEngineUrl));
         }
         catch (URISyntaxException use) {
             log.error("Error creating URI for PFCTaxEngineCommunicator: " + use.getMessage());
