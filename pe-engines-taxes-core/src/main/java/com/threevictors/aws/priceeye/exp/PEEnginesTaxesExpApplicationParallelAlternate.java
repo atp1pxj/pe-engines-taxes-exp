@@ -1,6 +1,7 @@
 package com.threevictors.aws.priceeye.exp;
 
 import com.opencsv.CSVReader;
+import com.threevictors.aws.configreader.configuration.reader.heavy.ConfigurationReader;
 import com.threevictors.aws.data.priceeye.PEItinerary;
 import com.threevictors.aws.priceeye.exp.loader.PEItinerariesLoader;
 import com.threevictors.aws.priceeye.exp.loader.X1TaxRecordDataPointsLoader;
@@ -8,6 +9,7 @@ import com.threevictors.aws.priceeye.exp.model.taxengine.response.*;
 import com.threevictors.aws.priceeye.exp.taxengine.PFCTaxEngineCommunicator;
 import com.threevictors.aws.priceeye.exp.taxengine.TaxEngineCommunicator;
 
+import com.threevictors.common.aws.s3.S3Util;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -35,18 +37,17 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
     private PFCTaxEngineCommunicator pfcTaxEngineCommunicator;
     private PEItineraryTaxProcessor peItineraryTaxProcessor;
 
+    private S3Util s3Util;
+
     //List of mismatched tax line numbers with connections. Depends on the source file read from the command line argument.
     List<Integer> misMatchTaxLineNumbers = Arrays.asList(
-            //US AND XF taxes 10 lines
-            //288, 419, 422, 477, 478, 484, 495, 635, 649, 662
 
-            //XF top 10 lines
-            //3, 28, 29, 30, 34, 35, 36, 37, 38, 41
-            //2979
 
             //OI taxes 8 lines - openjaw removed
             //2, 20, 411, 593, 594, 911, 912, 1316
 
+            //OY taxes 8 lines - openjaw removed
+            //46, 496, 503, 572, 1043, 1046, 1047, 1802
 
             //WY taxes 8 lines
             //4392, 4393, 4394, 4395, 4396, 4397, 4398, 4399
@@ -59,18 +60,38 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
         taxEngineCommunicator = new TaxEngineCommunicator();
         pfcTaxEngineCommunicator = new PFCTaxEngineCommunicator();
 
-        X1TaxRecordDataPointsLoader x1TaxRecordDataPointsLoader = new X1TaxRecordDataPointsLoader();
-        log.info("Loading X1 tax record data points from redis dump file...");
-        long startTime = System.currentTimeMillis();
+        s3Util = new S3Util();
+        Properties p = ConfigurationReader.readProperties( "pe-engines-taxes.properties");
+        String fileBucket = p.getProperty("x1taxrecords.file.bucket").trim();
 
-        // Load the X1 tax record data points from the resource file
-        InputStream inputStream = getClass().getClassLoader().getResourceAsStream("xldatapoints_all_taxrecs_from_redis_all_20250611.txt");
-        if (inputStream == null) {
-            throw new FileNotFoundException("Resource not found");
+        //Not correct to give fullpath
+        //String bucketObjectKey = "s3://"+fileBucket+"/x1datapoints_all_taxrecs_from_engine_redis.txt";
+        String bucketObjectKey = p.getProperty("x1taxrecords.file.object.name").trim();
+
+        //Check if object exists
+        if(s3Util.doesObjectExist(fileBucket, bucketObjectKey)) {
+
+            X1TaxRecordDataPointsLoader x1TaxRecordDataPointsLoader = new X1TaxRecordDataPointsLoader();
+
+            log.info("Loading X1 tax record data points from engine redis dump file...");
+            long startTime = System.currentTimeMillis();
+            //"x1datapoints_all_taxrecs_from_engine_redis.txt"
+            InputStream inputStream = s3Util.getFileInputStream( fileBucket, bucketObjectKey);
+
+            if (inputStream == null) {
+                log.error("X1 tax record data points file could be empty in S3 bucket: " + fileBucket + " with key: " + bucketObjectKey);
+                throw new FileNotFoundException("X1 tax datapoints file could be empty or not present - " + bucketObjectKey);
+            }
+            x1TaxRecordDataPointsMap = Collections.unmodifiableMap(
+                    x1TaxRecordDataPointsLoader.loadTaxRecordDataPoints(inputStream)
+            );
+            log.info("DONE Loading X1 tax record data points from redis dump file. Time taken: " + (System.currentTimeMillis() - startTime) + " ms");
+            log.info("X1 tax record data points loaded: " + x1TaxRecordDataPointsMap.size() + " entries");
         }
-        x1TaxRecordDataPointsMap = Collections.unmodifiableMap(
-                x1TaxRecordDataPointsLoader.loadTaxRecordDataPoints(inputStream)
-        );
+        else {
+            log.error("X1 tax record data points file not found in S3 bucket: " + fileBucket + " with key: " + bucketObjectKey);
+            throw new FileNotFoundException(" X1 tax datapoints file not found - " + bucketObjectKey);
+        }
 
         // Initialize the PEItineraryProcessor with the required dependencies
         peItineraryTaxProcessor = new PEItineraryTaxProcessor(
@@ -78,8 +99,6 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                 taxEngineCommunicator,
                 pfcTaxEngineCommunicator
         );
-
-        log.info("DONE Loading X1 tax record data points from redis dump file. Time taken: " + (System.currentTimeMillis() - startTime) + " ms");
     }
 
     /**
@@ -153,9 +172,9 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
 
                 // Filter lines if misMatchTaxLineNumbers is not empty
                 // Uncomment this when reading mismatched tax line numbers
-                    /*if (!misMatchTaxLineNumbers.isEmpty() && !misMatchTaxLineNumbers.contains(lineNumber)) {
-                        continue;
-                    }*/
+                /*if (!misMatchTaxLineNumbers.isEmpty() && !misMatchTaxLineNumbers.contains(lineNumber)) {
+                    continue;
+                }*/
 
                 final String[] currentLine = line;
                 final int currentLineNumber = lineNumber;
@@ -211,7 +230,6 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                 // Set the ticket date on the itinerary object
                 itinerary.setDuration(Integer.parseInt(ticketDate));
             } else {
-                // From the same line, create two itineraries - one for outbound and one for inbound
                 // TODO: Implement this if needed
             }
 
