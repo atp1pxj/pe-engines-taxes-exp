@@ -36,11 +36,10 @@ public class CommonOutputPEItinsLoader implements Serializable {
         commonOutputConverter = new CommonOutputConverter();
     }
 
-    public List<PEItinerary> loadPEItins(int salesDate, String customer, int limit ) {
+    public List<PEItinerary> loadPEItins(int salesDate, String customer, String schemaSuffix, int limit ) {
 
         List<PEItinerary> peItineraries = new ArrayList<>();
-
-        List<PECommonOutput> commonOutputList = redshiftCommonOutputReader.getCommonOutput(salesDate, customer, "", limit);
+        List<PECommonOutput> commonOutputList = redshiftCommonOutputReader.getCommonOutput(salesDate, customer, schemaSuffix, limit);
 
         if(commonOutputList != null && !commonOutputList.isEmpty()) {
             commonOutputList.parallelStream().forEach(peCommonOutput -> {

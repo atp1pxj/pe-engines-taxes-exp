@@ -19,7 +19,7 @@ public class RedshiftCommonOutputReader extends DatabaseReader {
 
     @Override
     protected String getDefaultPropertiesFilename() {
-        return "database-redshift-common-output-reader-tax-engine";
+        return "database-redshift-common-output-reader-tax-engine.properties";
     }
 
     public RedshiftCommonOutputReader() {

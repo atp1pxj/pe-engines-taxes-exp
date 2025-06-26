@@ -116,17 +116,21 @@ public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEng
             legs.add(legData);
         }
 
-        for (int i = 0; i < peItinerary.getInboundLegs().size(); i++) {
-            RawLeg leg = peItinerary.getInboundLegs().get(i);
+        //Null safety for one-ways
+        if(peItinerary.getInboundLegs() != null && !peItinerary.getInboundLegs().isEmpty()) {
+            for (int i = 0; i < peItinerary.getInboundLegs().size(); i++) {
+                RawLeg leg = peItinerary.getInboundLegs().get(i);
 
-            boolean lastLeg = i == peItinerary.getInboundLegs().size() - 1;
-            TaxLegVelocityData legData = buildLegData(leg, lastLeg );
+                boolean lastLeg = i == peItinerary.getInboundLegs().size() - 1;
+                TaxLegVelocityData legData = buildLegData(leg, lastLeg );
 
-            if (lastLeg) legData.setTransferTypeLeg(false);
+                if (lastLeg) legData.setTransferTypeLeg(false);
 
-            legData.setFareIndex(1);
-            legs.add(legData);
+                legData.setFareIndex(1);
+                legs.add(legData);
+            }
         }
+
 
         ctx.setLegs(legs);
 
