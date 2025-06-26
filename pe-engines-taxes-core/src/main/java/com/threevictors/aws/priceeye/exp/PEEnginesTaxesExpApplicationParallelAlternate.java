@@ -3,6 +3,7 @@ package com.threevictors.aws.priceeye.exp;
 import com.opencsv.CSVReader;
 import com.threevictors.aws.configreader.configuration.reader.heavy.ConfigurationReader;
 import com.threevictors.aws.data.priceeye.PEItinerary;
+import com.threevictors.aws.priceeye.exp.loader.CommonOutputPEItinsLoader;
 import com.threevictors.aws.priceeye.exp.loader.PEItinerariesLoader;
 import com.threevictors.aws.priceeye.exp.loader.X1TaxRecordDataPointsLoader;
 import com.threevictors.aws.priceeye.exp.model.taxengine.response.*;
@@ -36,6 +37,7 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
     private TaxEngineCommunicator taxEngineCommunicator;
     private PFCTaxEngineCommunicator pfcTaxEngineCommunicator;
     private PEItineraryTaxProcessor peItineraryTaxProcessor;
+    private CommonOutputPEItinsLoader commonOutputPEItinsLoader;
 
     private S3Util s3Util;
 
@@ -59,6 +61,8 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
 
         taxEngineCommunicator = new TaxEngineCommunicator();
         pfcTaxEngineCommunicator = new PFCTaxEngineCommunicator();
+        //TODO: Need to use this to get PEItineraries from common output data and call Engines.
+        commonOutputPEItinsLoader = new CommonOutputPEItinsLoader();
 
         s3Util = new S3Util();
         Properties p = ConfigurationReader.readProperties( "pe-engines-taxes.properties");

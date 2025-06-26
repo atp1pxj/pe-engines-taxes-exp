@@ -53,8 +53,14 @@ public class RedshiftCommonOutputReader extends DatabaseReader {
             query = query + " limit " + limit;
         }
 
-        try (Connection connection = getConnection(); Statement statement = connection.createStatement() ) {
+        //try (Connection connection = getConnection(); Statement statement = connection.createStatement() ) {
+        Connection connection = null;
+        try{
+            connection = getConnection();
+            Statement statement = connection.createStatement();
+
             ResultSet rs = statement.executeQuery( query );
+
             while ( rs.next() ) {
                 PECommonOutput commonOutput = parseCommonOutput( rs );
                 if ( commonOutput != null ) {
@@ -66,6 +72,16 @@ public class RedshiftCommonOutputReader extends DatabaseReader {
             String message = "COMMON OUTPUT: error reading common output for sales date=" + salesDate + ", query=" + query;
             log.error( message, e );
             throw new DatabaseReaderException( message, e );
+        }
+        finally {
+            try {
+                if ( connection != null ) {
+                    connection.close();
+                }
+            }
+            catch ( Exception e ) {
+                log.warn( "COMMON OUTPUT: error closing connection", e );
+            }
         }
 
         return commonOutputList;
