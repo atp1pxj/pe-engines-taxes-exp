@@ -6,6 +6,7 @@ import com.threevictors.aws.priceeye.exp.loader.CommonOutputPEItinsLoader;
 import com.threevictors.aws.priceeye.exp.model.taxengine.response.X1TaxRecordDataPoints;
 import com.threevictors.aws.priceeye.exp.taxengine.PFCTaxEngineCommunicator;
 import com.threevictors.aws.priceeye.exp.taxengine.TaxEngineCommunicator;
+import com.threevictors.aws.priceeye.exp.loader.X1TaxRecordDataPointsLoader;
 import com.threevictors.common.aws.s3.S3Util;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -14,6 +15,7 @@ import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * This class loads PEItineraries from CommonOutput data and processes them in parallel
@@ -62,8 +64,8 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
                 throw new FileNotFoundException("X1 tax datapoints file could be empty or not present - " + bucketObjectKey);
             }
 
-            com.threevictors.aws.priceeye.exp.loader.X1TaxRecordDataPointsLoader x1TaxRecordDataPointsLoader = 
-                new com.threevictors.aws.priceeye.exp.loader.X1TaxRecordDataPointsLoader();
+            X1TaxRecordDataPointsLoader x1TaxRecordDataPointsLoader =
+                    new X1TaxRecordDataPointsLoader();
 
             x1TaxRecordDataPointsMap = Collections.unmodifiableMap(
                     x1TaxRecordDataPointsLoader.loadTaxRecordDataPoints(inputStream)
@@ -97,8 +99,10 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
         // Create a list to hold all the futures
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
-        // Process each itinerary in parallel
-        for (PEItinerary itinerary : peItineraries) {
+        // Process each itinerary in parallel using parallel stream
+        ConcurrentLinkedQueue<CompletableFuture<Void>> futureQueue = new ConcurrentLinkedQueue<>();
+
+        peItineraries.parallelStream().forEach(itinerary -> {
             try {
                 // Acquire a permit from the semaphore before submitting a new task
                 semaphore.acquire();
@@ -119,11 +123,14 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
                     }
                 }, executor);
 
-                futures.add(future);
+                futureQueue.add(future);
             } catch (InterruptedException e) {
                 log.error("Error acquiring semaphore", e);
             }
-        }
+        });
+
+        // Add all futures from the concurrent queue to the futures list
+        futures.addAll(futureQueue);
 
         // Combine all futures into a single CompletableFuture
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
