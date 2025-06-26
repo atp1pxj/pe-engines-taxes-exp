@@ -139,6 +139,13 @@
                 <artifactId>threevictors-common-aws-s3</artifactId>
                 <version>${version.threevictors}</version>
             </dependency>
+            <!-- DatabaseReader and DatabaseWriter base classes needed for redshift access-->
+            <dependency>
+                <groupId>com.threevictors</groupId>
+                <artifactId>threevictors-common-database-data-access-common</artifactId>
+                <!-- 0.196 if needed -->
+                <version>${version.threevictors}</version>
+            </dependency>
 
             <!-- PriceEye dependencies -->
             <dependency>
