@@ -85,55 +85,6 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
         );
     }
 
-    /**
-     * Process a list of PEItineraries in parallel
-     *
-     * @param peItineraries The list of PEItineraries to process
-     * @param salesDate
-     * @return A CompletableFuture that completes when all processing is done
-     */
-    /*private CompletableFuture<Void> processItineraries(List<PEItinerary> peItineraries, int salesDate) {
-        log.info("Processing " + peItineraries.size() + " itineraries");
-
-        // Create a bounded semaphore to limit the number of concurrent tasks
-        Semaphore semaphore = new Semaphore(THREAD_COUNT * 2);
-
-        // Create a list to hold all the futures
-        List<CompletableFuture<Void>> futures = new ArrayList<>();
-
-        // Process each itinerary sequentially to ensure all futures are properly collected
-        for (PEItinerary itinerary : peItineraries) {
-            try {
-                // Acquire a permit from the semaphore before submitting a new task
-                semaphore.acquire();
-
-                // Generate a unique query ID
-                String queryId = QUERY_ID_PREFIX_3V + UUID.randomUUID();
-
-                // Create a CompletableFuture for each itinerary
-                CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-                    try {
-                        // Process the itinerary
-                        peItineraryTaxProcessor.processPEItinerary(itinerary, queryId, salesDate);
-                    } catch (Exception e) {
-                        log.error("Error processing itinerary", e);
-                    } finally {
-                        // Release the permit back to the semaphore when the task is done
-                        semaphore.release();
-                    }
-                }, executor);
-
-                futures.add(future);
-            } catch (InterruptedException e) {
-                log.error("Error acquiring semaphore", e);
-            }
-        }
-
-        // Combine all futures into a single CompletableFuture
-        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
-    }*/
-
-
     private void processItineraries(List<PEItinerary> peItineraries, int salesDate) {
         log.info("Processing " + peItineraries.size() + " itineraries");
 
@@ -257,10 +208,10 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
 
             // Process the itineraries in parallel
             //CompletableFuture<Void> processingFuture = currentApp.processItineraries(peItineraries, salesDate);
-
             // Wait for all processing to complete
             //processingFuture.join();
 
+            //Kick off itin processing in parallel.
             currentApp.processItineraries(peItineraries, salesDate);
 
             log.info("Returned to main.");
