@@ -101,10 +101,8 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
         // Create a list to hold all the futures
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
-        // Process each itinerary in parallel using parallel stream
-        ConcurrentLinkedQueue<CompletableFuture<Void>> futureQueue = new ConcurrentLinkedQueue<>();
-
-        peItineraries.parallelStream().forEach(itinerary -> {
+        // Process each itinerary sequentially to ensure all futures are properly collected
+        for (PEItinerary itinerary : peItineraries) {
             try {
                 // Acquire a permit from the semaphore before submitting a new task
                 semaphore.acquire();
@@ -125,14 +123,11 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
                     }
                 }, executor);
 
-                futureQueue.add(future);
+                futures.add(future);
             } catch (InterruptedException e) {
                 log.error("Error acquiring semaphore", e);
             }
-        });
-
-        // Add all futures from the concurrent queue to the futures list
-        futures.addAll(futureQueue);
+        }
 
         // Combine all futures into a single CompletableFuture
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
