@@ -52,13 +52,13 @@ public class PEItineraryTaxProcessor {
      */
     public RootResponse processPEItinerary(PEItinerary currentItin, String queryId, int salesDate) {
         RootResponse rootResponse = taxEngineCommunicator.sendRequest(currentItin, queryId, salesDate);
-        
+
         if (rootResponse != null) {
             examineTaxes(rootResponse, currentItin, queryId, salesDate);
         } else {
             log.error("Null response for itinerary: " + currentItin);
         }
-        
+
         return rootResponse;
     }
 
@@ -182,14 +182,16 @@ public class PEItineraryTaxProcessor {
         PEItinerary obOwItin = PEItinerary.copy(currentItin);
         //Empty inbound legs for outbound itinerary
         obOwItin.setInboundLegs(List.of());
-
-        PEItinerary ibOwItin = PEItinerary.copy(currentItin);
-        //set inbound legs as outbound for inbound OW PFC itinerary
-        ibOwItin.setOutboundLegs(currentItin.getInboundLegs());
-        ibOwItin.setInboundLegs(List.of());
-
         pfcOWItineraries.add(obOwItin);
-        pfcOWItineraries.add(ibOwItin);
+
+        // Only create and add inbound one-way itinerary if inbound legs exist
+        if (currentItin.getInboundLegs() != null && !currentItin.getInboundLegs().isEmpty()) {
+            PEItinerary ibOwItin = PEItinerary.copy(currentItin);
+            //set inbound legs as outbound for inbound OW PFC itinerary
+            ibOwItin.setOutboundLegs(currentItin.getInboundLegs());
+            ibOwItin.setInboundLegs(List.of());
+            pfcOWItineraries.add(ibOwItin);
+        }
 
         for (PEItinerary owItin : pfcOWItineraries) {
             RootPFCResponse rootPFCResponse = pfcTaxEngineCommunicator.sendRequest(owItin, queryId, salesDate);
