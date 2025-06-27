@@ -9,11 +9,17 @@ import com.threevictors.aws.priceeye.exp.model.taxengine.response.*;
 import com.threevictors.aws.priceeye.exp.taxengine.PFCTaxEngineCommunicator;
 import com.threevictors.aws.priceeye.exp.taxengine.TaxEngineCommunicator;
 
+import com.threevictors.common.aws.s3.S3Util;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -32,6 +38,7 @@ public class PEItineraryTaxProcessor {
     private final Map<String, X1TaxRecordDataPoints> x1TaxRecordDataPointsMap;
     private final TaxEngineCommunicator taxEngineCommunicator;
     private final PFCTaxEngineCommunicator pfcTaxEngineCommunicator;
+    private S3Util s3Util;
 
     public PEItineraryTaxProcessor(
             Map<String, X1TaxRecordDataPoints> x1TaxRecordDataPointsMap,
@@ -40,6 +47,8 @@ public class PEItineraryTaxProcessor {
         this.x1TaxRecordDataPointsMap = x1TaxRecordDataPointsMap;
         this.taxEngineCommunicator = taxEngineCommunicator;
         this.pfcTaxEngineCommunicator = pfcTaxEngineCommunicator;
+        //Added s3Util
+        this.s3Util = new S3Util();
     }
 
     /**
@@ -250,6 +259,8 @@ public class PEItineraryTaxProcessor {
 
         if (!didCalculatedTaxesMatch) {
             log.info(logRoute(currentItin));
+            //Call method to write to the csv file here
+            writeMismatchedItinDataToCSV(currentItin, taxLadder);
             log.info("Expected: " + itineraryTaxes + " Actual: " + totalTax + " Diff: " + taxDifference + " LN: " + currentItin.getChannel());
             compareTaxLadders(currentItin, taxLadder);
         }
@@ -335,6 +346,129 @@ public class PEItineraryTaxProcessor {
 
         return ("Route: " + route + " $" + currentItin.getTotalPrice() + " LN: " + currentItin.getChannel());
     }
+
+
+    // Use a static object for synchronization
+    private static final Object CSV_LOCK = new Object();
+
+    private String writeMismatchedItinDataToCSV(PEItinerary currentItin, TaxLadder taxLadder) {
+        // Create a StringBuilder to build the CSV line
+        StringBuilder csvLine = new StringBuilder();
+
+        // Build the route information in CSV format
+        StringBuilder route = new StringBuilder();
+
+        // Process outbound legs
+        for (RawLeg leg : currentItin.getOutboundLegs()) {
+            if (route.length() > 0) {
+                route.append("-");
+            }
+            route.append(leg.getOriginAirportCode())
+                    .append("(")
+                    .append(leg.getMarketingCarrier())
+                    .append(leg.getFlightNumber())
+                    .append(" ")
+                    .append(leg.getDepartDate()).append(" ").append(leg.getDepartTime()).append(":")
+                    .append(leg.getArriveDate()).append(" ").append(leg.getArriveTime())
+                    .append(")")
+                    .append(leg.getDestinationAirportCode());
+        }
+
+        // Process inbound legs if they exist
+        if (currentItin.getInboundLegs() != null && !currentItin.getInboundLegs().isEmpty()) {
+            route.append(" / ");
+            int len = route.length();
+            for (RawLeg leg : currentItin.getInboundLegs()) {
+                if (route.length() > len) {
+                    route.append("-");
+                }
+                route.append(leg.getOriginAirportCode())
+                        .append("(")
+                        .append(leg.getMarketingCarrier())
+                        .append(leg.getFlightNumber())
+                        .append(" ")
+                        .append(leg.getDepartDate()).append(" ").append(leg.getDepartTime()).append(":")
+                        .append(leg.getArriveDate()).append(" ").append(leg.getArriveTime())
+                        .append(")")
+                        .append(leg.getDestinationAirportCode());
+            }
+        }
+
+        // Add route information to CSV line
+        csvLine.append("\"").append(route).append("\",");
+
+        // Add total price and channel
+        csvLine.append(currentItin.getTotalPrice()).append(",");
+        csvLine.append(currentItin.getChannel()).append(",");
+
+        // Add tax ladder values
+        csvLine.append("\"USD:");
+
+        // Get flat tax codes
+        Set<String> flatTaxCodes = taxLadder.getFlatTaxCodes();
+        // Get percentage tax codes
+        Set<String> percentageTaxCodes = taxLadder.getPercentageTaxCodes();
+
+        // Combine all tax codes
+        Set<String> allTaxCodes = new TreeSet<>();
+        allTaxCodes.addAll(flatTaxCodes);
+        allTaxCodes.addAll(percentageTaxCodes);
+
+        // Build the tax ladder string
+        boolean first = true;
+        for (String taxCode : allTaxCodes) {
+            BigDecimal taxRate = taxLadder.getTaxRate(taxCode);
+            if (taxRate != null) {
+                if (!first) {
+                    csvLine.append("|");
+                }
+                csvLine.append(taxCode).append(" ").append(taxRate.setScale(2, RoundingMode.HALF_UP));
+                first = false;
+            }
+        }
+        csvLine.append("\",");
+
+        // Add current timestamp
+        LocalDateTime now = LocalDateTime.now();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        csvLine.append(now.format(formatter));
+
+        // Write to CSV file
+        try {
+            // Create resources directory if it doesn't exist
+            File resourcesDir = new File("pe-engines-taxes-core/src/main/resources");
+            if (!resourcesDir.exists()) {
+                resourcesDir.mkdirs();
+            }
+
+            // Create the CSV file
+            File csvFile = new File(resourcesDir, "mismatched_itineraries.csv");
+
+            // Synchronize file access to prevent concurrent writes
+            synchronized (CSV_LOCK) {
+                boolean fileExists = csvFile.exists();
+
+                // Create FileWriter in append mode
+                FileWriter writer = new FileWriter(csvFile, true);
+
+                // Write header if file doesn't exist
+                if (!fileExists) {
+                    writer.write("Route,Itin_TotalPrice,Channel,Calculated_TaxLadder,Timestamp\n");
+                }
+
+                // Write the CSV line
+                writer.write(csvLine.toString() + "\n");
+                writer.close();
+            }
+
+            log.info("Wrote mismatched itinerary data to CSV file: " + csvFile.getAbsolutePath());
+        } catch (IOException e) {
+            log.error("Error writing to CSV file", e);
+        }
+
+        return csvLine.toString();
+    }
+
 
     /**
      * Extracts the tax ladder from a list of Taxes objects and returns it as a sorted map.
