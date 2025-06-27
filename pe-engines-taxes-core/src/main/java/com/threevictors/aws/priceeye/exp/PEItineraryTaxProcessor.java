@@ -54,7 +54,10 @@ public class PEItineraryTaxProcessor {
         RootResponse rootResponse = taxEngineCommunicator.sendRequest(currentItin, queryId, salesDate);
 
         if (rootResponse != null) {
+            //Temp added for debugging threading issue.
+            //log.info("RootResponse: " + rootResponse.toString().substring(0, 100) + " queryId:  " + queryId);
             examineTaxes(rootResponse, currentItin, queryId, salesDate);
+            log.info("Completed examineTaxes call for queryId: " + queryId);
         } else {
             log.error("Null response for itinerary: " + currentItin);
         }
