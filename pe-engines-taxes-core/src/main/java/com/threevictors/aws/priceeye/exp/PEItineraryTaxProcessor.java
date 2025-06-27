@@ -1,5 +1,6 @@
 package com.threevictors.aws.priceeye.exp;
 
+import com.threevictors.aws.configreader.configuration.reader.heavy.ConfigurationReader;
 import com.threevictors.aws.data.aws.RawLeg;
 import com.threevictors.aws.data.priceeye.PEItinerary;
 import com.threevictors.aws.priceeye.exp.data.TaxLadder;
@@ -39,6 +40,9 @@ public class PEItineraryTaxProcessor {
     private final TaxEngineCommunicator taxEngineCommunicator;
     private final PFCTaxEngineCommunicator pfcTaxEngineCommunicator;
     private S3Util s3Util;
+    private String mismatchFileBucket;
+    private String mismatchFileKey;
+
 
     public PEItineraryTaxProcessor(
             Map<String, X1TaxRecordDataPoints> x1TaxRecordDataPointsMap,
@@ -47,8 +51,14 @@ public class PEItineraryTaxProcessor {
         this.x1TaxRecordDataPointsMap = x1TaxRecordDataPointsMap;
         this.taxEngineCommunicator = taxEngineCommunicator;
         this.pfcTaxEngineCommunicator = pfcTaxEngineCommunicator;
-        //Added s3Util
+
+
         this.s3Util = new S3Util();
+        Properties p = ConfigurationReader.readProperties("pe-engines-taxes.properties");
+        //Bucket name
+        mismatchFileBucket = p.getProperty("commonoutput.peitins.taxmismatch.file.bucket").trim();
+        //csv file name
+        mismatchFileKey = p.getProperty("commonoutput.peitins.taxmismatch.file.object.name").trim();
     }
 
     /**
@@ -433,37 +443,43 @@ public class PEItineraryTaxProcessor {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         csvLine.append(now.format(formatter));
 
-        // Write to CSV file
+        // Write to CSV file in S3
         try {
-            // Create resources directory if it doesn't exist
-            File resourcesDir = new File("pe-engines-taxes-core/src/main/resources");
-            if (!resourcesDir.exists()) {
-                resourcesDir.mkdirs();
-            }
-
-            // Create the CSV file
-            File csvFile = new File(resourcesDir, "mismatched_itineraries.csv");
-
             // Synchronize file access to prevent concurrent writes
             synchronized (CSV_LOCK) {
-                boolean fileExists = csvFile.exists();
+                // Check if file exists in S3
+                boolean fileExists = s3Util.doesObjectExist(mismatchFileBucket, mismatchFileKey);
 
-                // Create FileWriter in append mode
-                FileWriter writer = new FileWriter(csvFile, true);
-
-                // Write header if file doesn't exist
+                // Prepare the content to write
+                String content;
                 if (!fileExists) {
-                    writer.write("Route,Itin_TotalPrice,Channel,Calculated_TaxLadder,Timestamp\n");
+                    // Include header if file doesn't exist
+                    content = "Route,Itin_TotalPrice,Channel,Calculated_TaxLadder,Timestamp\n" + csvLine.toString() + "\n";
+                } else {
+                    // Read existing content from S3
+                    List<String> existingLines = s3Util.readFileLines(mismatchFileBucket, mismatchFileKey);
+
+                    // If reading failed or returned null, create a new file with header
+                    if (existingLines == null || existingLines.isEmpty()) {
+                        content = "Route,Itin_TotalPrice,Channel,Calculated_TaxLadder,Timestamp\n" + csvLine.toString() + "\n";
+                    } else {
+                        // Append the new line to existing content
+                        StringBuilder sb = new StringBuilder();
+                        for (String line : existingLines) {
+                            sb.append(line).append("\n");
+                        }
+                        sb.append(csvLine.toString()).append("\n");
+                        content = sb.toString();
+                    }
                 }
 
-                // Write the CSV line
-                writer.write(csvLine.toString() + "\n");
-                writer.close();
+                // Upload to S3
+                s3Util.uploadStringToS3File(content, mismatchFileBucket, mismatchFileKey);
             }
 
-            log.info("Wrote mismatched itinerary data to CSV file: " + csvFile.getAbsolutePath());
+            log.info("Wrote mismatched itinerary data to S3 bucket: " + mismatchFileBucket + ", key: " + mismatchFileKey);
         } catch (IOException e) {
-            log.error("Error writing to CSV file", e);
+            log.error("Error writing to S3 bucket: " + mismatchFileBucket + ", key: " + mismatchFileKey, e);
         }
 
         return csvLine.toString();
