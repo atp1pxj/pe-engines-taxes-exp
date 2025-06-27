@@ -242,7 +242,7 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                 String queryId = QUERY_ID_PREFIX_3V + UUID.randomUUID();
 
                 // Process the itinerary
-                peItineraryTaxProcessor.processPEItinerary(itinerary, queryId);
+                peItineraryTaxProcessor.processPEItinerary(itinerary, queryId, Integer.parseInt(ticketDate));
             }
         } catch (Exception e) {
             log.error("Error processing line " + currentLineNumber, e);

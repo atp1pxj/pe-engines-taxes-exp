@@ -12,24 +12,35 @@ import java.util.List;
 @Data
 public class PFCEngineRequestBuilder extends AbstractEngineRequestBuilder<PFCEngineReqVelocityData> {
 
-
     public PFCEngineRequestBuilder() {
         super();
     }
 
     @Override
     public String buildRequest(PEItinerary peItinerary) {
-        return buildJSONRequest(peItinerary);
+        return null;
     }
 
-    private String buildJSONRequest(PEItinerary peItinerary) {
+    @Override
+    public String buildRequest(PEItinerary peItinerary, int salesDate) {
+        return buildJSONRequest(peItinerary, salesDate);
+    }
+
+    private String buildJSONRequest(PEItinerary peItinerary, int salesDate) {
 
         PFCEngineReqVelocityData ctx = new PFCEngineReqVelocityData();
-
         stubPFCEngineReqVelocityData(ctx, peItinerary);
+
+        //Convert salesDate from yyyyMMdd to yyMMdd by taking last 6 digits as Engines needs it that way
+        String formattedSalesDate = String.valueOf(salesDate % 1000000);
+        //Set it on ticketDate
+        ctx.setTicketDate(formattedSalesDate);
+
         String velocityData = runVelocity(ctx, "pfc_engine_req.json.vm");
         return velocityData;
     }
+
+
 
     private PFCTaxLegVelocityData buildLegData( RawLeg leg, boolean lastLeg) {
 
@@ -63,13 +74,16 @@ public class PFCEngineRequestBuilder extends AbstractEngineRequestBuilder<PFCEng
             legs.add(legData);
         }
 
-        for (int i = 0; i < peItinerary.getInboundLegs().size(); i++) {
-            RawLeg leg = peItinerary.getInboundLegs().get(i);
-            boolean lastLeg = i == peItinerary.getInboundLegs().size() - 1;
-            PFCTaxLegVelocityData legData = buildLegData(leg, lastLeg );
-
-            legs.add(legData);
+        //Null-safety for one way
+        if(peItinerary.getInboundLegs()!= null && !peItinerary.getInboundLegs().isEmpty()) {
+            for (int i = 0; i < peItinerary.getInboundLegs().size(); i++) {
+                RawLeg leg = peItinerary.getInboundLegs().get(i);
+                boolean lastLeg = i == peItinerary.getInboundLegs().size() - 1;
+                PFCTaxLegVelocityData legData = buildLegData(leg, lastLeg );
+                legs.add(legData);
+            }
         }
+
         ctx.setLegs(legs);
 
         //Non-leg data

@@ -25,14 +25,24 @@ public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEng
 
     @Override
     public String buildRequest(PEItinerary peItinerary) {
-        return buildJSONRequest(peItinerary);
+        return null;
     }
 
-    private String buildJSONRequest(PEItinerary peItinerary) {
+    @Override
+    public String buildRequest(PEItinerary peItinerary, int salesDate) {
+        return buildJSONRequest(peItinerary, salesDate);
+    }
+    
+    private String buildJSONRequest(PEItinerary peItinerary, int salesDate) {
 
         TaxEngineReqVelocityData ctx = new TaxEngineReqVelocityData();
 
         stubTaxEngineReqVelocityData(ctx, peItinerary);
+        //Convert salesDate from yyyyMMdd to yyMMdd by taking last 6 digits as Engines needs it that way
+        String formattedSalesDate = String.valueOf(salesDate % 1000000);
+        //Set it on ticketDate
+        ctx.setTicketDate(formattedSalesDate);
+
         String velocityData = runVelocity(ctx, "tax_engine_req.json.vm");
         return velocityData;
     }

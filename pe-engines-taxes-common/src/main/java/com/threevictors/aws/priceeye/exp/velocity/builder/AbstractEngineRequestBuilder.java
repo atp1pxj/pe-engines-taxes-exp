@@ -17,6 +17,8 @@ public abstract class AbstractEngineRequestBuilder<T> {
 
     public abstract String buildRequest(PEItinerary itinerary);
 
+    public abstract String buildRequest(PEItinerary itinerary, int salesDate);
+
     public AbstractEngineRequestBuilder() {
         initializeVelocity();
     }

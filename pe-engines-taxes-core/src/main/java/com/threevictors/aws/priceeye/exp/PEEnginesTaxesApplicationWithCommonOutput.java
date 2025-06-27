@@ -87,10 +87,12 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
 
     /**
      * Process a list of PEItineraries in parallel
+     *
      * @param peItineraries The list of PEItineraries to process
+     * @param salesDate
      * @return A CompletableFuture that completes when all processing is done
      */
-    private CompletableFuture<Void> processItineraries(List<PEItinerary> peItineraries) {
+    private CompletableFuture<Void> processItineraries(List<PEItinerary> peItineraries, int salesDate) {
         log.info("Processing " + peItineraries.size() + " itineraries");
 
         // Create a bounded semaphore to limit the number of concurrent tasks
@@ -114,7 +116,7 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
                 CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
                     try {
                         // Process the itinerary
-                        peItineraryTaxProcessor.processPEItinerary(itinerary, queryId);
+                        peItineraryTaxProcessor.processPEItinerary(itinerary, queryId, salesDate);
                     } catch (Exception e) {
                         log.error("Error processing itinerary", e);
                     } finally {
@@ -203,7 +205,7 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
             }
 
             // Process the itineraries in parallel
-            CompletableFuture<Void> processingFuture = currentApp.processItineraries(peItineraries);
+            CompletableFuture<Void> processingFuture = currentApp.processItineraries(peItineraries, salesDate);
 
             // Wait for all processing to complete
             processingFuture.join();
