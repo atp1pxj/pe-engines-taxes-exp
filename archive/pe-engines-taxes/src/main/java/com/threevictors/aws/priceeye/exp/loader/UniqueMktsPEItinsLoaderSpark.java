@@ -1,6 +1,6 @@
-package com.threevictors.aws.priceeye.exp.loader;
+package com.threevictors.aws.priceeye.taxes.loader;
 
-import com.threevictors.aws.priceeye.exp.dao.MetadataReader;
+import com.threevictors.aws.priceeye.taxes.dao.MetadataReader;
 import lombok.Data;
 import org.apache.spark.sql.*;
 import org.apache.spark.sql.types.*;

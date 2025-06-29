@@ -1,4 +1,4 @@
-package com.threevictors.aws.priceeye.exp;
+package com.threevictors.aws.priceeye.taxes;
 
 
 
@@ -8,12 +8,12 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.threevictors.aws.data.aws.RawLeg;
 import com.threevictors.aws.data.priceeye.PEItinerary;
-import com.threevictors.aws.priceeye.exp.dao.MetadataReader;
-import com.threevictors.aws.priceeye.exp.loader.PEItinerariesLoader;
-import com.threevictors.aws.priceeye.exp.loader.PEItinsFromCSVLoader;
-import com.threevictors.aws.priceeye.exp.loader.X1TaxRecordDataPointsLoader;
-import com.threevictors.aws.priceeye.exp.model.taxengine.response.*;
-import com.threevictors.aws.priceeye.exp.velocity.builder.TaxEngineRequestBuilder;
+import com.threevictors.aws.priceeye.taxes.dao.MetadataReader;
+import com.threevictors.aws.priceeye.taxes.loader.PEItinerariesLoader;
+import com.threevictors.aws.priceeye.taxes.loader.PEItinsFromCSVLoader;
+import com.threevictors.aws.priceeye.taxes.loader.X1TaxRecordDataPointsLoader;
+import com.threevictors.aws.priceeye.taxes.model.taxengine.response.*;
+import com.threevictors.aws.priceeye.taxes.velocity.builder.TaxEngineRequestBuilder;
 
 import java.lang.reflect.Type;
 import java.math.BigDecimal;

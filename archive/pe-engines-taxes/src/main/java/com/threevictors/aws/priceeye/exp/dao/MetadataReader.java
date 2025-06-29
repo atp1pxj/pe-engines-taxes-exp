@@ -1,4 +1,4 @@
-package com.threevictors.aws.priceeye.exp.dao;
+package com.threevictors.aws.priceeye.taxes.dao;
 
 import com.threevictors.aws.data.dates.DateTime;
 import com.threevictors.common.database.dao.common.exceptions.DatabaseReaderException;

@@ -1,4 +1,4 @@
-package com.threevictors.aws.priceeye.exp.data;
+package com.threevictors.aws.priceeye.taxes.data;
 
 import java.math.BigDecimal;
 import java.util.Map;

@@ -5,8 +5,8 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.threevictors.aws.priceeye.exp</groupId>
-        <artifactId>pe-engines-taxes-exp</artifactId>
+        <groupId>com.threevictors.aws.priceeye.taxes</groupId>
+        <artifactId>pe-engines-taxes</artifactId>
         <version>0.01-SNAPSHOT</version>
     </parent>
 

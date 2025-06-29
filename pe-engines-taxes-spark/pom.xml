@@ -5,8 +5,8 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.threevictors.aws.priceeye.exp</groupId>
-        <artifactId>pe-engines-taxes-exp</artifactId>
+        <groupId>com.threevictors.aws.priceeye.taxes</groupId>
+        <artifactId>pe-engines-taxes</artifactId>
         <version>0.01-SNAPSHOT</version>
     </parent>
 
@@ -19,6 +19,7 @@
         <dependency>
             <groupId>com.threevictors.aws.priceeye.exp</groupId>
             <artifactId>pe-engines-taxes-common</artifactId>
+            <version>${project.version}</version>
         </dependency>
 
         <!-- Apache Spark dependencies -->
@@ -76,7 +77,7 @@
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>com.threevictors.aws.priceeye.exp.loader.UniqueMktsPEItinsLoaderSpark</mainClass>
+                                    <mainClass>com.threevictors.aws.priceeye.taxes.loader.UniqueMktsPEItinsLoaderSpark</mainClass>
                                 </transformer>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
                                     <resource>META-INF/org/apache/logging/log4j/core/config/plugins/Log4j2Plugins.dat</resource>

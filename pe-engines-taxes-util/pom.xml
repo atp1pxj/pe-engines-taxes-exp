@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.threevictors.aws.priceeye.taxes</groupId>
+        <artifactId>pe-engines-taxes</artifactId>
+        <version>0.01-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>pe-engines-taxes-util</artifactId>
+    <packaging>jar</packaging>
+    <name>pe-engines-taxes-util</name>
+
+    <dependencies>
+        <!-- Internal module dependencies -->
+        <dependency>
+            <groupId>com.threevictors.aws.priceeye.taxes</groupId>
+            <artifactId>pe-engines-taxes-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.threevictors.aws.priceeye.taxes</groupId>
+            <artifactId>pe-engines-taxes-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- PriceEye dependencies -->
+        <dependency>
+            <groupId>com.threevictors.aws.priceeye</groupId>
+            <artifactId>threevictors-priceeye-data</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.threevictors.aws.priceeye</groupId>
+            <artifactId>threevictors-priceeye-common</artifactId>
+        </dependency>
+
+        <!-- Metadata module -->
+        <dependency>
+            <groupId>com.threevictors</groupId>
+            <artifactId>threevictors-common-database-data-access-aurora-metadata</artifactId>
+        </dependency>
+
+        <!-- Database connectivity -->
+        <dependency>
+            <groupId>com.threevictors</groupId>
+            <artifactId>threevictors-common-database-data-access-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+        </dependency>
+
+        <!-- Configuration reader -->
+        <dependency>
+            <groupId>com.threevictors.aws.configreader</groupId>
+            <artifactId>threevictors-configuration-reader-heavy</artifactId>
+        </dependency>
+
+        <!-- Logging dependencies -->
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+        </dependency>
+
+        <!-- AWS S3 -->
+        <dependency>
+            <groupId>com.threevictors</groupId>
+            <artifactId>threevictors-common-aws-s3</artifactId>
+        </dependency>
+
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.30</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- CSV Processing -->
+        <dependency>
+            <groupId>com.opencsv</groupId>
+            <artifactId>opencsv</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>${maven.compiler.source}</source>
+                    <target>${maven.compiler.target}</target>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

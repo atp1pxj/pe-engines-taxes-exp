@@ -1,4 +1,4 @@
-package com.threevictors.aws.priceeye.exp.loader;
+package com.threevictors.aws.priceeye.taxes.loader;
 
 import com.threevictors.aws.data.aws.RawLeg;
 import com.threevictors.aws.data.priceeye.PEItinerary;

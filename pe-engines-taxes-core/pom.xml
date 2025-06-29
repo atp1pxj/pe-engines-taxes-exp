@@ -5,8 +5,8 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.threevictors.aws.priceeye.exp</groupId>
-        <artifactId>pe-engines-taxes-exp</artifactId>
+        <groupId>com.threevictors.aws.priceeye.taxes</groupId>
+        <artifactId>pe-engines-taxes</artifactId>
         <version>0.01-SNAPSHOT</version>
     </parent>
 
@@ -17,8 +17,9 @@
     <dependencies>
         <!-- Internal module dependencies -->
         <dependency>
-            <groupId>com.threevictors.aws.priceeye.exp</groupId>
+            <groupId>com.threevictors.aws.priceeye.taxes</groupId>
             <artifactId>pe-engines-taxes-common</artifactId>
+            <version>${project.version}</version>
         </dependency>
 
         <!-- Service Fee Engine -->
@@ -61,40 +62,6 @@
                     <source>${maven.compiler.source}</source>
                     <target>${maven.compiler.target}</target>
                 </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
-                        <configuration>
-                            <filters>
-                                <filter>
-                                    <artifact>*:*</artifact>
-                                    <excludes>
-                                        <exclude>META-INF/*.SF</exclude>
-                                        <exclude>META-INF/*.DSA</exclude>
-                                        <exclude>META-INF/*.RSA</exclude>
-                                        <exclude>META-INF/org/apache/logging/log4j/core/config/plugins/Log4j2Plugins.dat</exclude>
-                                    </excludes>
-                                </filter>
-                            </filters>
-                            <transformers>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>com.threevictors.aws.priceeye.exp.PEEnginesTaxesExpApplicationParallelAlternate</mainClass>
-                                </transformer>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
-                                    <resource>META-INF/org/apache/logging/log4j/core/config/plugins/Log4j2Plugins.dat</resource>
-                                </transformer>
-                            </transformers>
-                        </configuration>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
     </build>
