@@ -12,10 +12,14 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 public class RedshiftCommonOutputReader extends DatabaseReader {
 
     private static final Logger log = LogManager.getLogger(RedshiftCommonOutputReader.class);
+
+    private final static int FETCH_SIZE = 10000;
+    private final static int QUERY_TIMEOUT = 0;
 
     @Override
     protected String getDefaultPropertiesFilename() {
@@ -27,9 +31,7 @@ public class RedshiftCommonOutputReader extends DatabaseReader {
         initialize(1);
     }
 
-    public List<PECommonOutput> getCommonOutput(int salesDate, String customer, String schemaSuffix, int limit ) {
-        List<PECommonOutput> commonOutputList = new ArrayList<>();
-
+    private String buildQuery( int salesDate, String customer, String schemaSuffix, int limit) {
         //Note: customer_collection_name column not present anymore in the table
         String query = "select feed, observation_date, observation_time, reference, source, pos, origin, destination, outbound_gcm, los, outbound_travel_stop_over, " +
                 "inbound_travel_stop_over, carrier, dominant_marketing_carrier, outbound_dominant_marketing_carrier, outbound_marketing_carrier_list, " +
@@ -53,6 +55,15 @@ public class RedshiftCommonOutputReader extends DatabaseReader {
             query = query + " limit " + limit;
         }
 
+        return query;
+    }
+    
+    
+    public List<PECommonOutput> getCommonOutput(int salesDate, String customer, String schemaSuffix, int limit ) {
+        List<PECommonOutput> commonOutputList = new ArrayList<>();
+        
+        String query = buildQuery( salesDate, customer, schemaSuffix, limit );
+ 
         //try (Connection connection = getConnection(); Statement statement = connection.createStatement() ) {
         Connection connection = null;
         try{
@@ -179,6 +190,40 @@ public class RedshiftCommonOutputReader extends DatabaseReader {
         }
 
         return record;
+    }
+
+
+
+    public void streamCommonOutput(int salesDate, String customer, String schemaSuffix, int limit, 
+                                   Consumer<PECommonOutput> processor) {
+        String query = buildQuery(salesDate, customer, schemaSuffix, limit);
+        
+        try (Connection connection = getConnection();
+             Statement statement = connection.createStatement()) {
+            
+            // Configure for streaming
+            statement.setFetchSize( FETCH_SIZE ); // Fetch 1000 rows at a time
+            
+            // For large result sets, you might also want to set these
+            statement.setQueryTimeout( QUERY_TIMEOUT ); // No timeout for long-running queries
+            
+            try (ResultSet resultSet = statement.executeQuery(query)) {
+                int processedCount = 0;
+                while (resultSet.next()) {
+                    PECommonOutput commonOutput = parseCommonOutput(resultSet);
+                    processor.accept(commonOutput);
+                    
+                    processedCount++;
+                    if (processedCount % 1000 == 0) {
+                        log.info("Streamed {} records from database", processedCount);
+                    }
+                }
+                log.info("Completed streaming {} total records", processedCount);
+            }
+        } catch (Exception e) {
+            log.error("Error streaming common output data", e);
+            throw new DatabaseReaderException("Failed to stream common output", e);
+        }
     }
 
     /**

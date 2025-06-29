@@ -20,6 +20,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * This class loads PEItineraries from CommonOutput data and processes them in parallel
@@ -138,6 +139,94 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
 
         // TODO: Do the comparison
         log.info("Exiting processItineraries.");
+    }
+
+
+    private void processItinerariesStreaming(File tmpFile, int salesDate, String customer, String schemaSuffix, int limit) {
+        try (PrintWriter pWriter = new PrintWriter(tmpFile)) {
+            log.info("Starting streaming processing of itineraries");
+
+            // Create a bounded semaphore to limit the number of concurrent tasks
+            Semaphore semaphore = new Semaphore(THREAD_COUNT * 2);
+
+            // Keep track of active futures for proper cleanup
+            List<CompletableFuture<Void>> activeFutures = new ArrayList<>();
+            AtomicInteger processedCount = new AtomicInteger(0);
+            AtomicInteger submittedCount = new AtomicInteger(0);
+
+            // Stream and process itineraries
+            commonOutputPEItinsLoader.streamPEItins(salesDate, customer, schemaSuffix, limit,
+                    itinerary -> {
+                        try {
+                            // Acquire a permit from the semaphore before submitting a new task
+                            semaphore.acquire();
+
+                            int currentCount = submittedCount.incrementAndGet();
+                            if (currentCount % 1000 == 0) {
+                                log.info("Submitted {} itineraries for processing", currentCount);
+                            }
+
+                            // Create a CompletableFuture for each itinerary
+                            CompletableFuture<Void> future = CompletableFuture.supplyAsync(() -> {
+                                try {
+                                    // Process the itinerary
+                                    return peItineraryTaxProcessor.processPEItinerary(itinerary, salesDate);
+                                } catch (Exception e) {
+                                    log.error("Error processing itinerary", e);
+                                    return null;
+                                } finally {
+                                    // Release the permit back to the semaphore when the task is done
+                                    semaphore.release();
+                                    int processed = processedCount.incrementAndGet();
+                                    if (processed % 1000 == 0) {
+                                        log.info("Processed {} itineraries", processed);
+                                    }
+                                }
+                            }, executor).thenAccept(taxLadder -> {
+                                synchronized (pWriter) {
+                                    writeTaxComparison(pWriter, itinerary, taxLadder);
+                                }
+                            });
+
+                            // Add to active futures and clean up completed ones periodically
+                            synchronized (activeFutures) {
+                                activeFutures.add(future);
+
+                                // Periodically clean up completed futures to prevent memory buildup
+                                if (activeFutures.size() % 100 == 0) {
+                                    activeFutures.removeIf(CompletableFuture::isDone);
+                                }
+                            }
+
+                        } catch (InterruptedException e) {
+                            log.error("Error acquiring semaphore", e);
+                            Thread.currentThread().interrupt();
+                        }
+                    });
+
+            // Wait for all remaining futures to complete
+            log.info("Waiting for all processing to complete...");
+            CompletableFuture<Void> allFutures;
+            synchronized (activeFutures) {
+                allFutures = CompletableFuture.allOf(activeFutures.toArray(new CompletableFuture[0]));
+            }
+
+            allFutures.whenComplete((result, exception) -> {
+                if (exception != null) {
+                    log.error("Error processing itineraries", exception);
+                } else {
+                    log.info("All itinerary processing completed. Processed: {}, Submitted: {}",
+                            processedCount.get(), submittedCount.get());
+                }
+            });
+
+            allFutures.join();
+
+        } catch (Exception e) {
+            log.error("Error in streaming processing", e);
+        }
+
+        log.info("Exiting processItinerariesStreaming.");
     }
 
     /**
@@ -296,18 +385,8 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
 
         try {
 
-            List<PEItinerary> peItineraries;
-            //Load the itins from common output
-            peItineraries = currentApp.commonOutputPEItinsLoader.loadPEItins(salesDate, customer, schemaSuffix, limit);
-            log.info("Loaded " + peItineraries.size() + " itineraries");
+            currentApp.processItinerariesStreaming(logFile, salesDate, customer, schemaSuffix, limit);
 
-            if (peItineraries.isEmpty()) {
-                log.warn("No itineraries found for the given parameters");
-                return;
-            }
-
-            //Kick off itin processing in parallel.
-            currentApp.processItineraries(logFile, peItineraries, salesDate);
 
 //            S3Util s3Util = new S3Util();
 //            s3Util.uploadObject(logFile, mismatchFileBucket, UUID.randomUUID().toString());

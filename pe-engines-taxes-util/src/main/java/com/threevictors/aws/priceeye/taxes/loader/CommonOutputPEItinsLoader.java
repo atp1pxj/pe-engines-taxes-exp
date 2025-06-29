@@ -11,6 +11,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * Loader class responsible for loading Price Eye itineraries from Common Output data stored in Redshift.
@@ -47,5 +48,18 @@ public class CommonOutputPEItinsLoader implements Serializable {
             });
         }
         return peItineraries;
+    }
+
+
+
+    public void streamPEItins(int salesDate, String customer, String schemaSuffix, int limit,
+                              Consumer<PEItinerary> processor) {
+
+        redshiftCommonOutputReader.streamCommonOutput(salesDate, customer, schemaSuffix, limit,
+                peCommonOutput -> {
+                    PEItinerary peItinerary = commonOutputConverter.convertCommonOutputToPeItinerary(
+                            peCommonOutput, airportToTimezoneMap);
+                    processor.accept(peItinerary);
+                });
     }
 }
