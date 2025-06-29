@@ -9,6 +9,7 @@ import com.threevictors.aws.priceeye.taxes.model.taxengine.response.X1TaxRecordD
 import com.threevictors.aws.priceeye.taxes.loader.X1TaxRecordDataPointsLoader;
 import com.threevictors.aws.priceeye.taxes.processor.PEItineraryTaxProcessor;
 import com.threevictors.common.aws.s3.S3Util;
+import com.threevictors.common.dates.IntegerDate;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -282,7 +283,8 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
 
         // Add total price and channel
         csvLine.append(String.format("%.2f,", currentItin.getTotalPrice()));
-        csvLine.append(String.format("%.2f,", currentItin.getTaxes()));
+        csvLine.append(String.format("%.2f,", currentItin.getYqyr()));
+        csvLine.append(String.format("%.2f,", currentItin.getTaxes() - currentItin.getYqyr()));
         csvLine.append(String.format("%.2f,", taxLadder.getTotalFlatTaxRate().doubleValue() + taxLadder.getTotalPercentageTaxRate().doubleValue()));
         csvLine.append(currentItin.getChannel()).append(",");
 
@@ -377,8 +379,6 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
         Properties p = ConfigurationReader.readProperties("pe-engines-taxes.properties");
         //Bucket name
         String mismatchFileBucket = p.getProperty("commonoutput.peitins.taxmismatch.file.bucket").trim();
-        //csv file name
-        String mismatchFileKey = p.getProperty("commonoutput.peitins.taxmismatch.file.object.name").trim();
 
         File logFile = File.createTempFile("pe-engines-taxes", ".log");
         PEEnginesTaxesApplicationWithCommonOutput currentApp = new PEEnginesTaxesApplicationWithCommonOutput(  );
@@ -388,8 +388,9 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
             currentApp.processItinerariesStreaming(logFile, salesDate, customer, schemaSuffix, limit);
 
 
-//            S3Util s3Util = new S3Util();
-//            s3Util.uploadObject(logFile, mismatchFileBucket, UUID.randomUUID().toString());
+            S3Util s3Util = new S3Util();
+            String remoteFileName = String.format("%d/%02d/%02d/%s", IntegerDate.getYear(salesDate), IntegerDate.getMonth(salesDate), IntegerDate.getDay(salesDate), UUID.randomUUID() );
+            s3Util.uploadObject(logFile, mismatchFileBucket, remoteFileName );
 
             log.info("Returned to main." + logFile.getAbsolutePath());
             log.info("✅ Processing complete.");

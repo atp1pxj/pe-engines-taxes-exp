@@ -44,7 +44,7 @@ public class RedshiftCommonOutputReader extends DatabaseReader {
                 "price_exc, tax, yqyr, q_surcharge, price_inc, currency, preferred_currency_rate, price_outbound, price_inbound, is_tax_inc_outin, outbound_available_seats, " +
                 "inbound_available_seats, substitute_site, price_exc_no_gds, price_inc_no_gds, tax_no_gds, price_outbound_no_gds, price_inbound_no_gds, requestid, " +
                 "refundable, change_fee, channel, outbound_total_flight_duration, inbound_total_flight_duration, sales_date, customer " +
-                "from common_output"+schemaSuffix+".common_output_format where sales_date=" + salesDate;
+                "from common_output"+schemaSuffix+".common_output_format where yqyr > 0 AND sales_date=" + salesDate;
 
 
         if ( customer != null && !"*".equals( customer ) ) {

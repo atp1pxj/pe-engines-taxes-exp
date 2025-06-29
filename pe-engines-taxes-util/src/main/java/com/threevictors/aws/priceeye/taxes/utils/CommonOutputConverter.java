@@ -22,7 +22,10 @@ public class CommonOutputConverter  implements Serializable {
 
     private static final Logger log = LogManager.getLogger(RedshiftCommonOutputReader.class);
 
-    public CommonOutputConverter() {
+    private Map<String, String> airportToTimezoneMap;
+
+    public CommonOutputConverter(Map<String, String> airportToTimezoneMap) {
+        this.airportToTimezoneMap = airportToTimezoneMap;
     }
 
     private String validate( String string ) {
@@ -41,64 +44,70 @@ public class CommonOutputConverter  implements Serializable {
 
     // legacy code calls this method like this: convertToRawSearch( searchWithItineraries, null, null, false, null, 1, "ADT" );
 
-    public PEItinerary convertCommonOutputToPeItinerary(PECommonOutput commonOutput, Map<String, String> airportToTimezoneMap) {
-        PEItinerary itinerary = new PEItinerary();
+    public PEItinerary convertCommonOutputToPeItinerary( PECommonOutput commonOutput ) {
+        try {
+            PEItinerary itinerary = new PEItinerary();
 
-        itinerary.setObservationTimestamp( buildTimestamp( commonOutput.getObservation_date(), commonOutput.getObservation_time() ) );
+            itinerary.setObservationTimestamp(buildTimestamp(commonOutput.getObservation_date(), commonOutput.getObservation_time()));
 
-        itinerary.setCurrency( commonOutput.getCurrency() );
+            itinerary.setCurrency(commonOutput.getCurrency());
 
-        itinerary.setOutBrands( commonOutput.getOutbound_fare_family() );
-        itinerary.setInBrands( commonOutput.getInbound_fare_family() );
+            itinerary.setOutBrands(commonOutput.getOutbound_fare_family());
+            itinerary.setInBrands(commonOutput.getInbound_fare_family());
 
-        itinerary.setOutboundLegs( buildOutboundLegList( commonOutput, airportToTimezoneMap ) );
-        itinerary.setInboundLegs( buildInboundLegList( commonOutput, airportToTimezoneMap ) );
+            itinerary.setOutboundLegs(buildOutboundLegList(commonOutput));
+            itinerary.setInboundLegs(buildInboundLegList(commonOutput));
 
 
-        if ( commonOutput.getOutbound_total_flight_duration() == 0) {
-            commonOutput.setOutbound_total_flight_duration( calculateTotalFlightDuration( itinerary.getOutboundLegs() ));
+            if (commonOutput.getOutbound_total_flight_duration() == 0) {
+                commonOutput.setOutbound_total_flight_duration(calculateTotalFlightDuration(itinerary.getOutboundLegs()));
+            }
+
+            if (itinerary.getInboundLegs() != null && !itinerary.getInboundLegs().isEmpty()) {
+                commonOutput.setInbound_total_flight_duration(calculateTotalFlightDuration(itinerary.getInboundLegs()));
+            }
+
+            int totalDuration = commonOutput.getOutbound_total_flight_duration();
+
+            //TODO: check this condition
+            if (commonOutput.getInbound_total_flight_duration() > 0) {
+                totalDuration += commonOutput.getInbound_total_flight_duration();
+            }
+
+            itinerary.setDuration(totalDuration);
+
+            itinerary.setTotalPrice(commonOutput.getPrice_inc());
+            itinerary.setTaxes(commonOutput.getTax());
+            itinerary.setYqyr(commonOutput.getYqyr());
+            itinerary.setOutboundPrice(commonOutput.getPrice_outbound());
+            itinerary.setInboundPrice(commonOutput.getPrice_inbound());
+            itinerary.setInOutPriceIncludesTax(commonOutput.getIs_tax_inc_outin() == 1);
+            itinerary.setRefundable(commonOutput.isRefundable());
+
+            itinerary.setChannel(commonOutput.getSource());
+
+            //itinerary.setFareConstructionText( ? );
+            //itinerary.setTaxLadder( ? );
+
+            itinerary.setChangeFee(commonOutput.getChange_fee());
+
+
+            // leave enriched fields unset
+            //double totalPriceEnriched;
+            //double taxesEnriched;
+            //double outboundPriceEnriched;
+            //double inboundPriceEnriched;
+            //java.util.List<com.threevictors.aws.data.aws.RawLeg> outboundLegsEnriched;
+            //java.util.List<com.threevictors.aws.data.aws.RawLeg> inboundLegsEnriched;
+            //java.lang.String outBrandsEnriched;
+            //java.lang.String inBrandsEnriched;
+
+            return itinerary;
         }
-
-        if ( itinerary.getInboundLegs() != null && !itinerary.getInboundLegs().isEmpty() ) {
-            commonOutput.setInbound_total_flight_duration( calculateTotalFlightDuration( itinerary.getInboundLegs() ));
+        catch (Exception e) {
+            log.error("Error converting common output to pe itinerary", e);
+            return null;
         }
-
-        int totalDuration = commonOutput.getOutbound_total_flight_duration();
-
-        //TODO: check this condition
-        if (commonOutput.getInbound_total_flight_duration() > 0) {
-            totalDuration += commonOutput.getInbound_total_flight_duration();
-        }
-
-        itinerary.setDuration( totalDuration);
-
-        itinerary.setTotalPrice( commonOutput.getPrice_inc() );
-        itinerary.setTaxes( commonOutput.getTax() );
-        itinerary.setYqyr( commonOutput.getYqyr() );
-        itinerary.setOutboundPrice( commonOutput.getPrice_outbound() );
-        itinerary.setInboundPrice( commonOutput.getPrice_inbound() );
-        itinerary.setInOutPriceIncludesTax( commonOutput.getIs_tax_inc_outin() == 1 );
-        itinerary.setRefundable( commonOutput.isRefundable() );
-
-        itinerary.setChannel( commonOutput.getSource() );
-
-        //itinerary.setFareConstructionText( ? );
-        //itinerary.setTaxLadder( ? );
-
-        itinerary.setChangeFee( commonOutput.getChange_fee() );
-
-
-        // leave enriched fields unset
-        //double totalPriceEnriched;
-        //double taxesEnriched;
-        //double outboundPriceEnriched;
-        //double inboundPriceEnriched;
-        //java.util.List<com.threevictors.aws.data.aws.RawLeg> outboundLegsEnriched;
-        //java.util.List<com.threevictors.aws.data.aws.RawLeg> inboundLegsEnriched;
-        //java.lang.String outBrandsEnriched;
-        //java.lang.String inBrandsEnriched;
-
-        return itinerary;
     }
 
 
@@ -120,7 +129,7 @@ public class CommonOutputConverter  implements Serializable {
         return duration;
     }
 
-    private List<RawLeg> buildOutboundLegList( PECommonOutput commonOutput, Map<String, String> airportToTimezoneMap ) {
+    private List<RawLeg> buildOutboundLegList( PECommonOutput commonOutput ) {
         int outboundLegCount = countPipes( commonOutput.getOutbound_marketing_carrier_list() ) + 1;
 
         List<RawLeg> outboundLegList = new ArrayList<>();
@@ -182,7 +191,7 @@ public class CommonOutputConverter  implements Serializable {
                 rawLeg.setDepartTime( buildTime( commonOutput.getOutbound_departure_time() ) );
 
                 //This method sets the arrival Time and arrival Date on the leg
-                calculateDateTimeWithDuration(rawLeg, true, airportToTimezoneMap);
+                calculateDateTimeWithDuration(rawLeg, true );
             }
             else { //subsequent legs
                 rawLeg.setOriginAirportCode( commonOutput.getOutbound_travel_stop_over() );
@@ -192,7 +201,7 @@ public class CommonOutputConverter  implements Serializable {
                 rawLeg.setArriveTime( buildTime( commonOutput.getOutbound_arrival_time() ) );
 
                 //sets depart time and depart date on the leg
-                calculateDateTimeWithDuration(rawLeg, false, airportToTimezoneMap);
+                calculateDateTimeWithDuration(rawLeg, false );
             }
 
             rawLeg.setMarketingCarrier( extract( marketingCarriers, legIndex ) );
@@ -211,7 +220,7 @@ public class CommonOutputConverter  implements Serializable {
         return outboundLegList;
     }
 
-    private List<RawLeg> buildInboundLegList( PECommonOutput commonOutput, Map<String, String> airportToTimezoneMap ) {
+    private List<RawLeg> buildInboundLegList( PECommonOutput commonOutput ) {
         if ( commonOutput.getInbound_marketing_carrier_list() == null || commonOutput.getInbound_marketing_carrier_list().isEmpty() ) {
             return null;
         }
@@ -279,7 +288,7 @@ public class CommonOutputConverter  implements Serializable {
                 rawLeg.setDepartTime( buildTime( commonOutput.getInbound_departure_time() ) );
 
                 //This method sets the arrival Time and arrival Date on the leg
-                calculateDateTimeWithDuration(rawLeg, true, airportToTimezoneMap);
+                calculateDateTimeWithDuration(rawLeg, true );
             }
             else { //subsequent legs
                 rawLeg.setOriginAirportCode( commonOutput.getInbound_travel_stop_over() );
@@ -289,7 +298,7 @@ public class CommonOutputConverter  implements Serializable {
                 rawLeg.setArriveTime( buildTime( commonOutput.getInbound_arrival_time() ) );
 
                 //sets depart time and depart date on the leg
-                calculateDateTimeWithDuration(rawLeg, false, airportToTimezoneMap);
+                calculateDateTimeWithDuration(rawLeg, false );
             }
 
             rawLeg.setMarketingCarrier( extract( marketingCarriers, legIndex ) );
@@ -340,9 +349,9 @@ public class CommonOutputConverter  implements Serializable {
      * @param rawLeg
      * @param isSetArrivalDateTime
      */
-    private void calculateDateTimeWithDuration(RawLeg rawLeg, boolean isSetArrivalDateTime, Map<String, String> airportToTimezoneMap) {
+    private void calculateDateTimeWithDuration(RawLeg rawLeg, boolean isSetArrivalDateTime ) {
 
-        if(isSetArrivalDateTime) {
+        if (isSetArrivalDateTime) {
             String departDateTime = String.format("%d%04d", rawLeg.getDepartDate(), rawLeg.getDepartTime());
             int durationInMins = rawLeg.getDurationInMinutes();
             String originAirportCode = rawLeg.getOriginAirportCode();
@@ -351,6 +360,14 @@ public class CommonOutputConverter  implements Serializable {
             //int arriveDate = rawLeg.getArriveDate();
             String destinationAirportCode = rawLeg.getDestinationAirportCode();
             String destinationTimeZone = airportToTimezoneMap.get(destinationAirportCode);
+
+            if (originTimeZone == null ) {
+                throw new RuntimeException("Origin timezone is null for airport code: " + originAirportCode);
+            }
+
+            if (destinationTimeZone == null ) {
+                throw new RuntimeException("Destination timezone is null for airport code: " + destinationAirportCode);
+            }
 
             DateTime destinationDateTime = convertSourceTZDateTimeToDestTZDateTimePlusDuration(departDateTime, originTimeZone, durationInMins, destinationTimeZone);
 

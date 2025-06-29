@@ -20,20 +20,18 @@ import java.util.function.Consumer;
 public class CommonOutputPEItinsLoader implements Serializable {
 
     private RedshiftCommonOutputReader redshiftCommonOutputReader;
-    private AuroraMetadataReader metadataReader;
-    private Map<String, String> airportToTimezoneMap;
     private CommonOutputConverter commonOutputConverter;
 
 
     public CommonOutputPEItinsLoader() {
 
-        metadataReader = new AuroraMetadataReader();
+        AuroraMetadataReader metadataReader = new AuroraMetadataReader();
         metadataReader.initialize(1);
-        airportToTimezoneMap = metadataReader.getAirportToTimezoneMap();
+        Map<String, String> airportToTimezoneMap = metadataReader.getAirportToTimezoneMap();
         metadataReader.shutdown();
 
         redshiftCommonOutputReader = new RedshiftCommonOutputReader();
-        commonOutputConverter = new CommonOutputConverter();
+        commonOutputConverter = new CommonOutputConverter( airportToTimezoneMap);
     }
 
     public List<PEItinerary> loadPEItins(int salesDate, String customer, String schemaSuffix, int limit ) {
@@ -43,7 +41,7 @@ public class CommonOutputPEItinsLoader implements Serializable {
 
         if(commonOutputList != null && !commonOutputList.isEmpty()) {
             commonOutputList.parallelStream().forEach(peCommonOutput -> {
-                PEItinerary peItinerary = commonOutputConverter.convertCommonOutputToPeItinerary(peCommonOutput, airportToTimezoneMap);
+                PEItinerary peItinerary = commonOutputConverter.convertCommonOutputToPeItinerary( peCommonOutput );
                 peItineraries.add(peItinerary);
             });
         }
@@ -57,8 +55,7 @@ public class CommonOutputPEItinsLoader implements Serializable {
 
         redshiftCommonOutputReader.streamCommonOutput(salesDate, customer, schemaSuffix, limit,
                 peCommonOutput -> {
-                    PEItinerary peItinerary = commonOutputConverter.convertCommonOutputToPeItinerary(
-                            peCommonOutput, airportToTimezoneMap);
+                    PEItinerary peItinerary = commonOutputConverter.convertCommonOutputToPeItinerary( peCommonOutput );
                     processor.accept(peItinerary);
                 });
     }
