@@ -2,6 +2,7 @@ package com.threevictors.aws.priceeye.taxes.loader;
 
 import com.threevictors.aws.data.priceeye.PECommonOutput;
 import com.threevictors.aws.data.priceeye.PEItinerary;
+import com.threevictors.aws.data.priceeye.Pair;
 import com.threevictors.aws.priceeye.taxes.dao.RedshiftCommonOutputReader;
 import com.threevictors.aws.priceeye.taxes.utils.CommonOutputConverter;
 import com.threevictors.common.database.dao.aurora.metadata.AuroraMetadataReader;
@@ -34,28 +35,13 @@ public class CommonOutputPEItinsLoader implements Serializable {
         commonOutputConverter = new CommonOutputConverter( airportToTimezoneMap);
     }
 
-    public List<PEItinerary> loadPEItins(int salesDate, String customer, String schemaSuffix, int limit ) {
-
-        List<PEItinerary> peItineraries = new ArrayList<>();
-        List<PECommonOutput> commonOutputList = redshiftCommonOutputReader.getCommonOutput(salesDate, customer, schemaSuffix, limit);
-
-        if(commonOutputList != null && !commonOutputList.isEmpty()) {
-            commonOutputList.parallelStream().forEach(peCommonOutput -> {
-                PEItinerary peItinerary = commonOutputConverter.convertCommonOutputToPeItinerary( peCommonOutput );
-                peItineraries.add(peItinerary);
-            });
-        }
-        return peItineraries;
-    }
-
-
 
     public void streamPEItins(int salesDate, String customer, String schemaSuffix, int limit,
-                              Consumer<PEItinerary> processor) {
+                              Consumer<Pair<String, PEItinerary>> processor) {
 
         redshiftCommonOutputReader.streamCommonOutput(salesDate, customer, schemaSuffix, limit,
                 peCommonOutput -> {
-                    PEItinerary peItinerary = commonOutputConverter.convertCommonOutputToPeItinerary( peCommonOutput );
+                    Pair<String, PEItinerary> peItinerary = commonOutputConverter.convertCommonOutputToPeItinerary( peCommonOutput );
                     processor.accept(peItinerary);
                 });
     }

@@ -7,6 +7,7 @@ import com.threevictors.aws.priceeye.taxes.loader.CommonOutputPEItinsLoader;
 import com.threevictors.aws.priceeye.taxes.loader.PEItinerariesLoader;
 import com.threevictors.aws.priceeye.taxes.loader.X1TaxRecordDataPointsLoader;
 import com.threevictors.aws.priceeye.taxes.model.taxengine.response.*;
+import com.threevictors.aws.priceeye.taxes.processor.PEItineraryTaxProcessor;
 import com.threevictors.aws.priceeye.taxes.taxengine.PFCTaxEngineCommunicator;
 import com.threevictors.aws.priceeye.taxes.taxengine.TaxEngineCommunicator;
 
@@ -36,7 +37,7 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
 
     private TaxEngineCommunicator taxEngineCommunicator;
     private PFCTaxEngineCommunicator pfcTaxEngineCommunicator;
-    private PEItineraryTaxProcessor2 peItineraryTaxProcessor;
+    private PEItineraryTaxProcessor peItineraryTaxProcessor;
     private CommonOutputPEItinsLoader commonOutputPEItinsLoader;
 
     private S3Util s3Util;
@@ -98,11 +99,7 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
         }
 
         // Initialize the PEItineraryProcessor with the required dependencies
-        peItineraryTaxProcessor = new PEItineraryTaxProcessor2(
-                x1TaxRecordDataPointsMap,
-                taxEngineCommunicator,
-                pfcTaxEngineCommunicator
-        );
+        peItineraryTaxProcessor = new PEItineraryTaxProcessor( x1TaxRecordDataPointsMap );
     }
 
     /**
@@ -242,7 +239,7 @@ public class PEEnginesTaxesExpApplicationParallelAlternate {
                 String queryId = QUERY_ID_PREFIX_3V + UUID.randomUUID();
 
                 // Process the itinerary
-                peItineraryTaxProcessor.processPEItinerary(itinerary, queryId, Integer.parseInt(ticketDate));
+                peItineraryTaxProcessor.processPEItinerary("US", itinerary, Integer.parseInt(ticketDate));
             }
         } catch (Exception e) {
             log.error("Error processing line " + currentLineNumber, e);

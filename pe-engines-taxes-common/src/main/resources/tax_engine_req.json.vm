@@ -47,11 +47,11 @@
   "validatingCarrier": "${ctx.validatingCarrier}",
   "pointOfSale": {
     "type": "N",
-    "code": "US"
+    "code": "${ctx.pos}"
   },
   "pointOfTicketing": {
     "type": "N",
-    "code": "US"
+    "code": "${ctx.pos}"
   },
 "faresTotal": 100.00,
   "feesTotal": 0.00,

@@ -60,9 +60,9 @@ public class TaxEngineCommunicator {
     }
 
 
-    public RootResponse sendRequest(PEItinerary itinerary, String queryId, int salesDate) {
+    public RootResponse sendRequest(String pointOfSale, PEItinerary itinerary, String queryId, int salesDate) {
 
-        String request = taxEngineRequestBuilder.buildRequest( itinerary, salesDate);
+        String request = taxEngineRequestBuilder.buildRequest( pointOfSale, itinerary, salesDate);
         //log.info("LN: " + itinerary.getChannel() + " JSON Request to taxengines: " + request);
 
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder();

@@ -23,21 +23,12 @@ public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEng
         oagRecordCache2.initialize();
     }
 
-    @Override
-    public String buildRequest(PEItinerary peItinerary) {
-        return null;
-    }
 
-    @Override
-    public String buildRequest(PEItinerary peItinerary, int salesDate) {
-        return buildJSONRequest(peItinerary, salesDate);
-    }
-    
-    private String buildJSONRequest(PEItinerary peItinerary, int salesDate) {
+    public String buildRequest(String pointOfSale, PEItinerary peItinerary, int salesDate) {
 
         TaxEngineReqVelocityData ctx = new TaxEngineReqVelocityData();
 
-        stubTaxEngineReqVelocityData(ctx, peItinerary);
+        stubTaxEngineReqVelocityData(ctx, pointOfSale, peItinerary);
         //Convert salesDate from yyyyMMdd to yyMMdd by taking last 6 digits as Engines needs it that way
         String formattedSalesDate = String.valueOf(salesDate % 1000000);
         //Set it on ticketDate
@@ -113,7 +104,7 @@ public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEng
     }
 
 
-    private void stubTaxEngineReqVelocityData(TaxEngineReqVelocityData ctx, PEItinerary peItinerary) {
+    private void stubTaxEngineReqVelocityData(TaxEngineReqVelocityData ctx, String pointOfSale, PEItinerary peItinerary) {
 
         List<TaxLegVelocityData> legs = new ArrayList<>();
 
@@ -170,6 +161,7 @@ public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEng
         ctx.setValidatingCarrier(peItinerary.getOutboundLegs().get(0).getMarketingCarrier());
         ctx.setCurrency(peItinerary.getCurrency());
         ctx.setTotalPrice(peItinerary.getTotalPrice());
+        ctx.setPos( pointOfSale);
     }
 
 }

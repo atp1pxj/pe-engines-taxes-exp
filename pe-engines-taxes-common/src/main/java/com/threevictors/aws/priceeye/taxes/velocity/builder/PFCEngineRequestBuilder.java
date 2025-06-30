@@ -17,27 +17,17 @@ public class PFCEngineRequestBuilder extends AbstractEngineRequestBuilder<PFCEng
     }
 
     @Override
-    public String buildRequest(PEItinerary peItinerary) {
-        return null;
-    }
-
-    @Override
-    public String buildRequest(PEItinerary peItinerary, int salesDate) {
-        return buildJSONRequest(peItinerary, salesDate);
-    }
-
-    private String buildJSONRequest(PEItinerary peItinerary, int salesDate) {
+    public String buildRequest(String pointOfSale, PEItinerary peItinerary, int salesDate) {
 
         PFCEngineReqVelocityData ctx = new PFCEngineReqVelocityData();
-        stubPFCEngineReqVelocityData(ctx, peItinerary);
+        stubPFCEngineReqVelocityData(ctx, pointOfSale, peItinerary);
 
         //Convert salesDate from yyyyMMdd to yyMMdd by taking last 6 digits as Engines needs it that way
         String formattedSalesDate = String.valueOf(salesDate % 1000000);
         //Set it on ticketDate
         ctx.setTicketDate(formattedSalesDate);
 
-        String velocityData = runVelocity(ctx, "pfc_engine_req.json.vm");
-        return velocityData;
+        return runVelocity(ctx, "pfc_engine_req.json.vm");
     }
 
 
@@ -63,7 +53,7 @@ public class PFCEngineRequestBuilder extends AbstractEngineRequestBuilder<PFCEng
     }
 
 
-    private void stubPFCEngineReqVelocityData(PFCEngineReqVelocityData ctx, PEItinerary peItinerary) {
+    private void stubPFCEngineReqVelocityData(PFCEngineReqVelocityData ctx, String pointOfSale, PEItinerary peItinerary) {
 
         List<PFCTaxLegVelocityData> legs = new ArrayList<>();
 
@@ -100,6 +90,8 @@ public class PFCEngineRequestBuilder extends AbstractEngineRequestBuilder<PFCEng
         // Note that this value is obtained from the runtime argument of the main method, which is set on the duration field
         // in the PEItinerary class as there is no other int field to hold the value. So it was set on duration field.
         ctx.setTicketDate(String.valueOf(peItinerary.getDuration()));
+        ctx.setPos(pointOfSale);
+        ctx.setCurrency(peItinerary.getCurrency());
     }
 
 }

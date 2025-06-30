@@ -8,6 +8,7 @@ import java.util.List;
 public class TaxEngineReqVelocityData {
 
     private List<TaxLegVelocityData> legs;
+    private String pos;
     private String fareOwningCarrier;
     private String tripType;//ONE_WAY, ROUND_TRIP
 

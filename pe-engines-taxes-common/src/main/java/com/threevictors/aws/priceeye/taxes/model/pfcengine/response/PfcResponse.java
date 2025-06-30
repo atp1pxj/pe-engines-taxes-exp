@@ -8,5 +8,5 @@ import java.util.List;
 public class PfcResponse{
     public List<Charge> charges;
     public String responseCurrency;
-    public int exchangeRate;
+    public double exchangeRate;
 }

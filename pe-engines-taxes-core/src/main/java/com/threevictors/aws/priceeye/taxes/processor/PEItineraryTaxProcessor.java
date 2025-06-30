@@ -54,22 +54,22 @@ public class PEItineraryTaxProcessor {
      * @param salesDate
      * @return The TaxLadder tax engine
      */
-    public TaxLadder processPEItinerary(PEItinerary currentItin, int salesDate) {
+    public TaxLadder processPEItinerary( String pointOfSale, PEItinerary currentItin, int salesDate) {
         String queryId = QUERY_ID_PREFIX_3V + UUID.randomUUID();
 
-        RootResponse rootResponse = taxEngineCommunicator.sendRequest(currentItin, queryId, salesDate);
+        RootResponse rootResponse = taxEngineCommunicator.sendRequest( pointOfSale, currentItin, queryId, salesDate);
 
         if (rootResponse != null) {
-            examineTaxes(rootResponse, currentItin, queryId, salesDate);
+            examineTaxes(rootResponse, pointOfSale, currentItin, queryId, salesDate);
         }
         else {
             log.error("Null response for itinerary: " + currentItin);
         }
 
-        return examineTaxes(rootResponse, currentItin, queryId, salesDate);
+        return examineTaxes(rootResponse, pointOfSale, currentItin, queryId, salesDate);
     }
 
-    private TaxLadder examineTaxes(RootResponse convertedResponse, PEItinerary currentItin, String queryId, int salesDate) {
+    private TaxLadder examineTaxes(RootResponse convertedResponse, String pointOfSale, PEItinerary currentItin, String queryId, int salesDate) {
         if (convertedResponse == null) {
             log.error("Converted response is null");
             return null;
@@ -100,7 +100,7 @@ public class PEItineraryTaxProcessor {
             return null;
         }
 
-        BigDecimal pfcTaxes = calculatePFCTaxes(currentItin, queryId, salesDate);
+        BigDecimal pfcTaxes = calculatePFCTaxes(pointOfSale, currentItin, queryId, salesDate);
 
         if (pfcTaxes.compareTo(BigDecimal.ZERO) > 0) {
             taxLadder.addFlatTaxRate("XF", pfcTaxes.min(BigDecimal.valueOf(18)));
@@ -180,7 +180,7 @@ public class PEItineraryTaxProcessor {
         return totalFlatTaxAmount.add(totalTaxOnTaxAmount);
     }
 
-    private BigDecimal calculatePFCTaxes(PEItinerary currentItin, String queryId, int salesDate) {
+    private BigDecimal calculatePFCTaxes(String pointOfSale, PEItinerary currentItin, String queryId, int salesDate) {
         AtomicReference<BigDecimal> pfcTaxes = new AtomicReference<>(BigDecimal.ZERO);
 
         List<PEItinerary> pfcOWItineraries = new ArrayList<>();
@@ -201,7 +201,7 @@ public class PEItineraryTaxProcessor {
         }
 
         for (PEItinerary owItin : pfcOWItineraries) {
-            RootPFCResponse rootPFCResponse = pfcTaxEngineCommunicator.sendRequest(owItin, queryId, salesDate);
+            RootPFCResponse rootPFCResponse = pfcTaxEngineCommunicator.sendRequest(pointOfSale, owItin, queryId, salesDate);
 
             if (rootPFCResponse != null && rootPFCResponse.getPfcResponse() != null
                     && rootPFCResponse.getPfcResponse().getCharges() != null

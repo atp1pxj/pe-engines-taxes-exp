@@ -4,6 +4,7 @@ import com.threevictors.aws.data.aws.RawLeg;
 import com.threevictors.aws.data.dates.DateTime;
 import com.threevictors.aws.data.priceeye.PEItinerary;
 import com.threevictors.aws.data.priceeye.PECommonOutput;
+import com.threevictors.aws.data.priceeye.Pair;
 import com.threevictors.aws.priceeye.taxes.dao.RedshiftCommonOutputReader;
 import lombok.Data;
 import org.apache.commons.lang.StringUtils;
@@ -44,7 +45,7 @@ public class CommonOutputConverter  implements Serializable {
 
     // legacy code calls this method like this: convertToRawSearch( searchWithItineraries, null, null, false, null, 1, "ADT" );
 
-    public PEItinerary convertCommonOutputToPeItinerary( PECommonOutput commonOutput ) {
+    public Pair<String, PEItinerary> convertCommonOutputToPeItinerary(PECommonOutput commonOutput ) {
         try {
             PEItinerary itinerary = new PEItinerary();
 
@@ -102,7 +103,7 @@ public class CommonOutputConverter  implements Serializable {
             //java.lang.String outBrandsEnriched;
             //java.lang.String inBrandsEnriched;
 
-            return itinerary;
+            return new Pair<>( commonOutput.getPos(), itinerary );
         }
         catch (Exception e) {
             log.error("Error converting common output to pe itinerary", e);

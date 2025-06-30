@@ -11,4 +11,7 @@ public class PFCEngineReqVelocityData {
 
     private String ticketDate;
     private String ticketingCarrier;
+    private String pos;
+    private String currency;
+
 }

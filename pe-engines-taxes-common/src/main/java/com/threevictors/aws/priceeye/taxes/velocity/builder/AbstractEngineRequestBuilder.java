@@ -15,9 +15,8 @@ public abstract class AbstractEngineRequestBuilder<T> {
 
     protected VelocityEngine velocityEngine;
 
-    public abstract String buildRequest(PEItinerary itinerary);
 
-    public abstract String buildRequest(PEItinerary itinerary, int salesDate);
+    public abstract String buildRequest(String pointOfSale, PEItinerary itinerary, int salesDate);
 
     public AbstractEngineRequestBuilder() {
         initializeVelocity();

@@ -21,9 +21,9 @@
   "passengerType": "ADT",
   "pointOfTicketing": {
     "type": "N",
-    "code": "US"
+    "code": "${ctx.pos}"
   },
   "ticketingCarrier": "${ctx.ticketingCarrier}",
-  "ticketCurrency": "USD",
+  "ticketCurrency": "${ctx.currency}",
   "ticketDate": "${ctx.ticketDate}"
 }

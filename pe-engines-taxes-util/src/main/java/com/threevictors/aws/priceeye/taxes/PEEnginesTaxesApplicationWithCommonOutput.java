@@ -15,7 +15,6 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.*;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -33,15 +32,12 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
 
     private static final int THREAD_COUNT = Runtime.getRuntime().availableProcessors() * 2; // Doubled thread count to handle I/O-bound operations
 
+    private final ExecutorService executor;
 
-    private Map<String, X1TaxRecordDataPoints> x1TaxRecordDataPointsMap;
+    private final PEItineraryTaxProcessor peItineraryTaxProcessor;
+    private final CommonOutputPEItinsLoader commonOutputPEItinsLoader;
 
-    private ExecutorService executor;
-
-    private PEItineraryTaxProcessor peItineraryTaxProcessor;
-    private CommonOutputPEItinsLoader commonOutputPEItinsLoader;
-
-    private S3Util s3Util;
+    private final S3Util s3Util;
 
     public PEEnginesTaxesApplicationWithCommonOutput() throws Exception {
         // Create a thread pool with the specified number of threads
@@ -54,7 +50,7 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
         String fileBucket = p.getProperty("x1taxrecords.file.bucket").trim();
         String bucketObjectKey = p.getProperty("x1taxrecords.file.object.name").trim();
 
-        x1TaxRecordDataPointsMap = getX1TaxRecordDataPointsMap(fileBucket, bucketObjectKey);
+        Map<String, X1TaxRecordDataPoints> x1TaxRecordDataPointsMap = getX1TaxRecordDataPointsMap(fileBucket, bucketObjectKey);
 
         // Initialize the PEItineraryProcessor with the required dependencies
         peItineraryTaxProcessor = new PEItineraryTaxProcessor( x1TaxRecordDataPointsMap );
@@ -66,80 +62,19 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
         // Check if object exists
         if (s3Util.doesObjectExist(fileBucket, bucketObjectKey)) {
             log.info("Loading X1 tax record data points from engine redis dump file...");
-            long startTime = System.currentTimeMillis();
             InputStream inputStream = s3Util.getFileInputStream(fileBucket, bucketObjectKey);
 
             if (inputStream == null) {
-                log.error("X1 tax record data points file could be empty in S3 bucket: " + fileBucket + " with key: " + bucketObjectKey);
+                log.error("X1 tax record data points file could be empty in S3 bucket: {} with key: {}", fileBucket, bucketObjectKey);
                 throw new FileNotFoundException("X1 tax datapoints file could be empty or not present - " + bucketObjectKey);
             }
 
             return Collections.unmodifiableMap( X1TaxRecordDataPointsLoader.loadTaxRecordDataPoints( inputStream ) );
         }
         else {
-            log.error("X1 tax record data points file not found in S3 bucket: " + fileBucket + " with key: " + bucketObjectKey);
+            log.error("X1 tax record data points file not found in S3 bucket: {} with key: {}", fileBucket, bucketObjectKey);
             throw new FileNotFoundException(" X1 tax datapoints file not found - " + bucketObjectKey);
         }
-    }
-
-    private void processItineraries(File tmpFile, List<PEItinerary> peItineraries, int salesDate) {
-        try (         PrintWriter pWriter = new PrintWriter( tmpFile ) ) {
-            log.info("Processing " + peItineraries.size() + " itineraries");
-
-            // Create a bounded semaphore to limit the number of concurrent tasks
-            Semaphore semaphore = new Semaphore(THREAD_COUNT * 2);
-
-            // Create a list to hold all the futures
-            List<CompletableFuture<Void>> futures = new ArrayList<>();
-
-
-            // Process each itinerary sequentially to ensure all futures are properly collected
-            for (PEItinerary itinerary : peItineraries) {
-                try {
-                    // Acquire a permit from the semaphore before submitting a new task
-                    semaphore.acquire();
-
-                    // Create a CompletableFuture for each itinerary
-                    CompletableFuture<Void> future = CompletableFuture.supplyAsync(() -> {
-                        try {
-                            // Process the itinerary
-                            return peItineraryTaxProcessor.processPEItinerary(itinerary, salesDate);
-                        } catch (Exception e) {
-                            log.error("Error processing itinerary", e);
-                            return null;
-                        } finally {
-                            // Release the permit back to the semaphore when the task is done
-                            semaphore.release();
-                        }
-                    }, executor).thenAccept(x -> writeTaxComparison(pWriter, itinerary, x));
-
-                    futures.add(future);
-                } catch (InterruptedException e) {
-                    log.error("Error acquiring semaphore", e);
-                }
-            }
-
-            // Wait for all futures to complete before returning to main
-            //CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-            CompletableFuture<Void> processingFuture = CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
-
-            processingFuture.whenComplete((result, exception) -> {
-                if (exception != null) {
-                    log.error("Error processing itineraries", exception);
-                } else {
-                    //Added for debugging
-                    log.info("processingFuture is complete.");
-                }
-            });
-
-            processingFuture.join();
-        }
-        catch (Exception e) {
-            log.error("Error processing itineraries", e);
-        }
-
-        // TODO: Do the comparison
-        log.info("Exiting processItineraries.");
     }
 
 
@@ -157,7 +92,7 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
 
             // Stream and process itineraries
             commonOutputPEItinsLoader.streamPEItins(salesDate, customer, schemaSuffix, limit,
-                    itinerary -> {
+                    itineraryPair -> {
                         try {
                             // Acquire a permit from the semaphore before submitting a new task
                             semaphore.acquire();
@@ -171,7 +106,7 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
                             CompletableFuture<Void> future = CompletableFuture.supplyAsync(() -> {
                                 try {
                                     // Process the itinerary
-                                    return peItineraryTaxProcessor.processPEItinerary(itinerary, salesDate);
+                                    return peItineraryTaxProcessor.processPEItinerary(itineraryPair.getX(), itineraryPair.getY(), salesDate);
                                 } catch (Exception e) {
                                     log.error("Error processing itinerary", e);
                                     return null;
@@ -185,7 +120,7 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
                                 }
                             }, executor).thenAccept(taxLadder -> {
                                 synchronized (pWriter) {
-                                    writeTaxComparison(pWriter, itinerary, taxLadder);
+                                    writeTaxComparison(pWriter, itineraryPair.getX(), itineraryPair.getY(), taxLadder);
                                 }
                             });
 
@@ -256,7 +191,7 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
         return String.format(format, leg.getOriginAirportCode(), leg.getDestinationAirportCode(), leg.getMarketingCarrier(), leg.getFlightNumber(), leg.getDepartDate(), leg.getDepartTime(), leg.getArriveDate(), leg.getArriveTime() );
     }
 
-    private void writeTaxComparison(PrintWriter pWriter, PEItinerary currentItin, TaxLadder taxLadder) {
+    private void writeTaxComparison(PrintWriter pWriter, String pointOfSale, PEItinerary currentItin, TaxLadder taxLadder) {
         // Create a StringBuilder to build the CSV line
         StringBuilder csvLine = new StringBuilder();
 
@@ -271,6 +206,7 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
         String inboundLeg1 = (returnDate == 0) ? buildLeg( null ) : buildLeg(currentItin.getInboundLegs().get(0));
         String inboundLeg2 = (returnDate != 0 && currentItin.getInboundLegs().size() > 1) ? buildLeg(currentItin.getInboundLegs().get(1)) : buildLeg( null );
 
+        csvLine.append(pointOfSale).append(",");
         csvLine.append(originAirportCode).append(",");
         csvLine.append(destinationAirportCode).append(",");
         csvLine.append(departureDate).append(",");
@@ -371,10 +307,10 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
         }
 
         // Log the arguments for verification
-        log.info("Sales Date: " + salesDate);
-        log.info("Customer: " + customer);
-        log.info("Limit: " + limit);
-        log.info("Schema Suffix: " + schemaSuffix);
+        log.info("Sales Date: {}", salesDate);
+        log.info("Customer: {}", customer);
+        log.info("Limit: {}", limit);
+        log.info("Schema Suffix: {}", schemaSuffix);
 
         Properties p = ConfigurationReader.readProperties("pe-engines-taxes.properties");
         //Bucket name
@@ -392,7 +328,7 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
             String remoteFileName = String.format("%d/%02d/%02d/%s", IntegerDate.getYear(salesDate), IntegerDate.getMonth(salesDate), IntegerDate.getDay(salesDate), UUID.randomUUID() );
             s3Util.uploadObject(logFile, mismatchFileBucket, remoteFileName );
 
-            log.info("Returned to main." + logFile.getAbsolutePath());
+            log.info("Returned to main.{}", logFile.getAbsolutePath());
             log.info("✅ Processing complete.");
         } catch (Exception e) {
             log.error("Error processing itineraries", e);
