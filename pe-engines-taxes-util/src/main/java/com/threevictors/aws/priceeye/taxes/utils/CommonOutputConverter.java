@@ -270,7 +270,7 @@ public class CommonOutputConverter  implements Serializable {
         String [] operatingCarriers = commonOutput.getInbound_operating_carrier_list().split("\\|");
         String [] flightNumbers = commonOutput.getInbound_flight_no().split("\\|");
         String [] bookingCodes = commonOutput.getInbound_booking_class().split("\\|");
-        String [] fareClasses = commonOutput.getInbound_fare_family().split("\\|");
+        String [] fareClasses = commonOutput.getInbound_fare_basis().split("\\|");
         String [] cabins = commonOutput.getInbound_cabins().split("\\|");
         String [] seats = commonOutput.getInbound_available_seats().split("\\|");
         String [] brands = commonOutput.getInbound_booking_class().split("\\|");

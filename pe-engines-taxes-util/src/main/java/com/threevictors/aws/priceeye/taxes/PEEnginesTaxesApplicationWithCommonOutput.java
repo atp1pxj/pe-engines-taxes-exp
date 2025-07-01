@@ -30,7 +30,7 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
 
     private static final Logger log = LogManager.getLogger(PEEnginesTaxesApplicationWithCommonOutput.class);
 
-    private static final int THREAD_COUNT = Runtime.getRuntime().availableProcessors() * 2; // Doubled thread count to handle I/O-bound operations
+    private static final int THREAD_COUNT = Runtime.getRuntime().availableProcessors() * 8; // Doubled thread count to handle I/O-bound operations
 
     private final ExecutorService executor;
 
@@ -83,7 +83,7 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
             log.info("Starting streaming processing of itineraries");
 
             // Create a bounded semaphore to limit the number of concurrent tasks
-            Semaphore semaphore = new Semaphore(THREAD_COUNT * 2);
+            Semaphore semaphore = new Semaphore(THREAD_COUNT * 8);
 
             // Keep track of active futures for proper cleanup
             List<CompletableFuture<Void>> activeFutures = new ArrayList<>();
@@ -183,12 +183,13 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
 
 
     private String buildLeg(RawLeg leg) {
-        String format = "%s,%s,%s,%04d,%d,%d,%d,%d";
-        String empty  = ",,,,,,,";
+        String format = "%s,%s,%s,%04d,%d,%d,%d,%d,%s,%s";
+        String empty  = ",,,,,,,,,";
 
         if (leg == null) return empty;
 
-        return String.format(format, leg.getOriginAirportCode(), leg.getDestinationAirportCode(), leg.getMarketingCarrier(), leg.getFlightNumber(), leg.getDepartDate(), leg.getDepartTime(), leg.getArriveDate(), leg.getArriveTime() );
+        return String.format(format, leg.getOriginAirportCode(), leg.getDestinationAirportCode(), leg.getMarketingCarrier(), leg.getFlightNumber(), leg.getDepartDate(), leg.getDepartTime(), leg.getArriveDate(), leg.getArriveTime(),
+                leg.getFareClass(), leg.getCabin());
     }
 
     private void writeTaxComparison(PrintWriter pWriter, String pointOfSale, PEItinerary currentItin, TaxLadder taxLadder) {
@@ -218,6 +219,7 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
         csvLine.append(inboundLeg2).append(",");
 
         // Add total price and channel
+        csvLine.append(currentItin.getCurrency()).append(",");
         csvLine.append(String.format("%.2f,", currentItin.getTotalPrice()));
         csvLine.append(String.format("%.2f,", currentItin.getYqyr()));
         csvLine.append(String.format("%.2f,", currentItin.getTaxes() - currentItin.getYqyr()));
