@@ -18,7 +18,7 @@ public class RedshiftCommonOutputReader extends DatabaseReader {
 
     private static final Logger log = LogManager.getLogger(RedshiftCommonOutputReader.class);
 
-    private final static int FETCH_SIZE = 10000;
+    private final static int FETCH_SIZE = 100000;
     private final static int QUERY_TIMEOUT = 0;
 
     @Override
