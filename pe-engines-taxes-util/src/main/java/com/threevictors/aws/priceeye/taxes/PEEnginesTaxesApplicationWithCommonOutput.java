@@ -119,9 +119,7 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
                                     }
                                 }
                             }, executor).thenAccept(taxLadder -> {
-                                synchronized (pWriter) {
-                                    writeTaxComparison(pWriter, itineraryPair.getX(), itineraryPair.getY(), taxLadder);
-                                }
+                                writeTaxComparison(pWriter, itineraryPair.getX(), itineraryPair.getY(), taxLadder);
                             });
 
                             // Add to active futures and clean up completed ones periodically
@@ -232,7 +230,9 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         csvLine.append(now.format(formatter));
 
-        pWriter.println( csvLine );
+        synchronized (pWriter) {
+            pWriter.println( csvLine );
+        }
     }
 
 
