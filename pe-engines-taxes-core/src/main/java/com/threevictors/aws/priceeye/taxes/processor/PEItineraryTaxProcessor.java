@@ -60,13 +60,13 @@ public class PEItineraryTaxProcessor {
         RootResponse rootResponse = taxEngineCommunicator.sendRequest( pointOfSale, currentItin, queryId, salesDate);
 
         if (rootResponse != null) {
-            examineTaxes(rootResponse, pointOfSale, currentItin, queryId, salesDate);
+            return examineTaxes(rootResponse, pointOfSale, currentItin, queryId, salesDate);
         }
         else {
             log.error("Null response for itinerary: " + currentItin);
+            return null;
         }
 
-        return examineTaxes(rootResponse, pointOfSale, currentItin, queryId, salesDate);
     }
 
     private TaxLadder examineTaxes(RootResponse convertedResponse, String pointOfSale, PEItinerary currentItin, String queryId, int salesDate) {
