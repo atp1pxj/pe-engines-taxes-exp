@@ -42,17 +42,7 @@ public class PFCTaxEngineCommunicator {
         Properties p = ConfigurationReader.readProperties( "pe-engines-taxes.properties" );
         pfcTaxEngineUrl = p.getProperty("pfc.tax.engine.url").trim();
 
-        // Increase connection pool size to match the number of worker threads
-        int connectionPoolSize = Runtime.getRuntime().availableProcessors() * 4; // Double the worker thread count for better throughput
-        System.setProperty("jdk.httpclient.connectionPoolSize", String.valueOf(connectionPoolSize));
-        System.setProperty("jdk.httpclient.keepalive.timeout"
-                , p.getProperty( "jdk.httpclient.keepalive.timeout", "60")); // Increase keepalive timeout
-
-        // Configure HTTP client with optimized settings
-        httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.of(30, ChronoUnit.SECONDS))
-                .version(HttpClient.Version.HTTP_2) // Use HTTP/2 for better performance
-                .build();
+        httpClient = SharedHttpFactory.getInstance().getHttpClient();
 
         pfcEngineRequestBuilder = new PFCEngineRequestBuilder();
 

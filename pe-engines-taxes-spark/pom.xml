@@ -17,7 +17,7 @@
     <dependencies>
         <!-- Internal module dependencies -->
         <dependency>
-            <groupId>com.threevictors.aws.priceeye.exp</groupId>
+            <groupId>com.threevictors.aws.priceeye.taxes</groupId>
             <artifactId>pe-engines-taxes-common</artifactId>
             <version>${project.version}</version>
         </dependency>
