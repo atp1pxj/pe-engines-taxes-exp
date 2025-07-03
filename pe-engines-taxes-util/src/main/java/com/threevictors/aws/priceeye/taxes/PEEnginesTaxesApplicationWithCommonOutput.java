@@ -15,6 +15,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.*;
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -30,8 +31,10 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
 
     private static final Logger log = LogManager.getLogger(PEEnginesTaxesApplicationWithCommonOutput.class);
 
-    private static final int THREAD_COUNT = Runtime.getRuntime().availableProcessors() * 8; // Doubled thread count to handle I/O-bound operations
+    //private static final int THREAD_COUNT = Runtime.getRuntime().availableProcessors() * 8; // Doubled thread count to handle I/O-bound operations
 
+    //Take totalThreadCount from runtime arg
+    private final int totalThreadCount;
     private final ExecutorService executor;
 
     private final PEItineraryTaxProcessor peItineraryTaxProcessor;
@@ -39,9 +42,13 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
 
     private final S3Util s3Util;
 
-    public PEEnginesTaxesApplicationWithCommonOutput() throws Exception {
+    public PEEnginesTaxesApplicationWithCommonOutput(int totalThreadCount) throws Exception {
+        // Store the thread count
+        this.totalThreadCount = totalThreadCount;
+
         // Create a thread pool with the specified number of threads
-        executor = Executors.newFixedThreadPool(THREAD_COUNT);
+        //executor = Executors.newFixedThreadPool(THREAD_COUNT);
+        executor = Executors.newFixedThreadPool(totalThreadCount);
 
         commonOutputPEItinsLoader = new CommonOutputPEItinsLoader();
 
@@ -53,7 +60,7 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
         Map<String, X1TaxRecordDataPoints> x1TaxRecordDataPointsMap = getX1TaxRecordDataPointsMap(fileBucket, bucketObjectKey);
 
         // Initialize the PEItineraryProcessor with the required dependencies
-        peItineraryTaxProcessor = new PEItineraryTaxProcessor( x1TaxRecordDataPointsMap );
+        peItineraryTaxProcessor = new PEItineraryTaxProcessor( x1TaxRecordDataPointsMap, totalThreadCount );
     }
 
 
@@ -82,8 +89,9 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
         try (PrintWriter pWriter = new PrintWriter(tmpFile)) {
             log.info("Starting streaming processing of itineraries");
 
+            //TODO: Check if this is still supposed to be totalThreadCount * 8 or just totalThreadCount.
             // Create a bounded semaphore to limit the number of concurrent tasks
-            Semaphore semaphore = new Semaphore(THREAD_COUNT * 8);
+            Semaphore semaphore = new Semaphore(totalThreadCount * 8);
 
             // Keep track of active futures for proper cleanup
             List<CompletableFuture<Void>> activeFutures = new ArrayList<>();
@@ -293,24 +301,34 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
         String customer = args[1];
 
         // Optional arguments
+        int totalThreadCount = Runtime.getRuntime().availableProcessors() * 8;
         int limit = 100;
         String schemaSuffix = "";
 
         if (args.length > 2) {
             try {
-                limit = Integer.parseInt(args[2]);
+                totalThreadCount = Integer.parseInt(args[2]);
+            } catch (NumberFormatException e) {
+                log.warn("Invalid 'totalThreadCount'. Using default value: Runtime.getRuntime().availableProcessors() * 8");
+            }
+        }
+
+        if (args.length > 3) {
+            try {
+                limit = Integer.parseInt(args[3]);
             } catch (NumberFormatException e) {
                 log.warn("Invalid 'limit' format. Using default value: 100");
             }
         }
 
-        if (args.length > 3) {
-            schemaSuffix = (args[3] != null) ? args[3].trim() : "";
+        if (args.length > 4) {
+            schemaSuffix = (args[4] != null) ? args[4].trim() : "";
         }
 
         // Log the arguments for verification
         log.info("Sales Date: {}", salesDate);
         log.info("Customer: {}", customer);
+        log.info("totalThreadCount: {}", totalThreadCount);
         log.info("Limit: {}", limit);
         log.info("Schema Suffix: {}", schemaSuffix);
 
@@ -319,19 +337,30 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
         String mismatchFileBucket = p.getProperty("commonoutput.peitins.taxmismatch.file.bucket").trim();
 
         File logFile = File.createTempFile("pe-engines-taxes", ".log");
-        PEEnginesTaxesApplicationWithCommonOutput currentApp = new PEEnginesTaxesApplicationWithCommonOutput(  );
+        PEEnginesTaxesApplicationWithCommonOutput currentApp = new PEEnginesTaxesApplicationWithCommonOutput(totalThreadCount);
 
         try {
 
+            //starttime
+            LocalDateTime startTime = LocalDateTime.now();
+            log.info("Starting processing at {}", startTime);
             currentApp.processItinerariesStreaming(logFile, salesDate, customer, schemaSuffix, limit);
 
-
             S3Util s3Util = new S3Util();
-            String remoteFileName = String.format("%d/%02d/%02d/%s", IntegerDate.getYear(salesDate), IntegerDate.getMonth(salesDate), IntegerDate.getDay(salesDate), UUID.randomUUID() );
-            s3Util.uploadObject(logFile, mismatchFileBucket, remoteFileName );
+            String remoteFileName = String.format("%d/%02d/%02d/%s", IntegerDate.getYear(salesDate), IntegerDate.getMonth(salesDate), IntegerDate.getDay(salesDate), UUID.randomUUID());
+            s3Util.uploadObject(logFile, mismatchFileBucket, remoteFileName);
 
             log.info("Returned to main.{}", logFile.getAbsolutePath());
             log.info("✅ Processing complete.");
+
+            //endtime
+            LocalDateTime endTime = LocalDateTime.now();
+            log.info("Ended processing at {}", endTime);
+
+            //totaltime Taken
+            double seconds = Duration.parse(Duration.between(startTime, endTime).toString()).toMillis()/1000.0;
+            log.info("Total time taken to run the app: {} seconds", String.format("%.2f", seconds));
+
         } catch (Exception e) {
             log.error("Error processing itineraries", e);
         }

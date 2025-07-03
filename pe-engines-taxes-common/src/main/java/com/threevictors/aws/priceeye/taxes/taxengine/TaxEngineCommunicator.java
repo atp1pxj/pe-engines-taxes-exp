@@ -36,12 +36,15 @@ public class TaxEngineCommunicator {
 
 
     public TaxEngineCommunicator() {
+        this(Runtime.getRuntime().availableProcessors() * 8);
+    }
 
+    public TaxEngineCommunicator(int threadCount) {
         Properties p = ConfigurationReader.readProperties( "pe-engines-taxes.properties" );
         sfeTaxEngineUrl = p.getProperty("sfe.tax.engine.url").trim();
 
         // Configure HTTP client with optimized settings
-        httpClient = SharedHttpFactory.getInstance().getHttpClient();
+        httpClient = SharedHttpFactory.getInstance(threadCount).getHttpClient();
 
         taxEngineRequestBuilder = new TaxEngineRequestBuilder();
 

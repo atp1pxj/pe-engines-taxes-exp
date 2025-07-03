@@ -42,9 +42,13 @@ public class PEItineraryTaxProcessor {
 
 
     public PEItineraryTaxProcessor( Map<String, X1TaxRecordDataPoints> x1TaxRecordDataPointsMap) {
+        this(x1TaxRecordDataPointsMap, Runtime.getRuntime().availableProcessors() * 8);
+    }
+
+    public PEItineraryTaxProcessor( Map<String, X1TaxRecordDataPoints> x1TaxRecordDataPointsMap, int threadCount) {
         this.x1TaxRecordDataPointsMap = x1TaxRecordDataPointsMap;
-        this.taxEngineCommunicator = new TaxEngineCommunicator();
-        this.pfcTaxEngineCommunicator = new PFCTaxEngineCommunicator();
+        this.taxEngineCommunicator = new TaxEngineCommunicator(threadCount);
+        this.pfcTaxEngineCommunicator = new PFCTaxEngineCommunicator(threadCount);
     }
 
     /**

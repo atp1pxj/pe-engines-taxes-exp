@@ -6,14 +6,14 @@ import java.time.temporal.ChronoUnit;
 
 public class SharedHttpFactory {
 
-    private static final SharedHttpFactory INSTANCE = new SharedHttpFactory();
+    private static SharedHttpFactory INSTANCE;
+    private static final Object LOCK = new Object();
 
     private final HttpClient httpClient;
 
-    private SharedHttpFactory() {
-
+    private SharedHttpFactory(int threadCount) {
         // Increase connection pool size to match the number of worker threads
-        int connectionPoolSize = Runtime.getRuntime().availableProcessors() * 8; // Double the worker thread count for better throughput
+        int connectionPoolSize = threadCount;
         System.setProperty("jdk.httpclient.connectionPoolSize", String.valueOf(connectionPoolSize));
         System.setProperty("jdk.httpclient.keepalive.timeout", "60");
 
@@ -25,6 +25,24 @@ public class SharedHttpFactory {
     }
 
     public static SharedHttpFactory getInstance() {
+        if (INSTANCE == null) {
+            synchronized (LOCK) {
+                if (INSTANCE == null) {
+                    INSTANCE = new SharedHttpFactory(Runtime.getRuntime().availableProcessors() * 8);
+                }
+            }
+        }
+        return INSTANCE;
+    }
+
+    public static SharedHttpFactory getInstance(int threadCount) {
+        if (INSTANCE == null) {
+            synchronized (LOCK) {
+                if (INSTANCE == null) {
+                    INSTANCE = new SharedHttpFactory(threadCount);
+                }
+            }
+        }
         return INSTANCE;
     }
 

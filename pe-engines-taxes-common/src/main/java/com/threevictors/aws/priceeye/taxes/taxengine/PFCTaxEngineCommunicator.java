@@ -38,11 +38,14 @@ public class PFCTaxEngineCommunicator {
     private String pfcTaxEngineUrl;
 
     public PFCTaxEngineCommunicator() {
+        this(Runtime.getRuntime().availableProcessors() * 8);
+    }
 
+    public PFCTaxEngineCommunicator(int threadCount) {
         Properties p = ConfigurationReader.readProperties( "pe-engines-taxes.properties" );
         pfcTaxEngineUrl = p.getProperty("pfc.tax.engine.url").trim();
 
-        httpClient = SharedHttpFactory.getInstance().getHttpClient();
+        httpClient = SharedHttpFactory.getInstance(threadCount).getHttpClient();
 
         pfcEngineRequestBuilder = new PFCEngineRequestBuilder();
 
