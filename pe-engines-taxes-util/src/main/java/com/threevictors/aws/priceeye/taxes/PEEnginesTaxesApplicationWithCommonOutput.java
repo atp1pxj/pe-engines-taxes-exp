@@ -114,7 +114,7 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
                             }
 
                             // Process the itinerary
-                             CompletableFuture<TaxLadder> taxLadder = peItineraryTaxProcessor.processPEItinerary(itineraryPair.getX(), itineraryPair.getY(), salesDate);
+                            CompletableFuture<TaxLadder> taxLadder = peItineraryTaxProcessor.processPEItinerary(itineraryPair.getX(), itineraryPair.getY(), salesDate);
 
                             CompletableFuture<Void> future = taxLadder.thenAcceptAsync( ladder -> {
                                  writeTaxComparison(pWriter, itineraryPair.getX(), itineraryPair.getY(), ladder);
@@ -149,21 +149,11 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
 
             // Wait for all remaining futures to complete
             log.info("Waiting for all processing to complete...");
-            CompletableFuture<Void> allFutures;
-            synchronized (activeFutures) {
-                allFutures = CompletableFuture.allOf(activeFutures.toArray(new CompletableFuture[0]));
-            }
 
-            allFutures.whenComplete((result, exception) -> {
-                if (exception != null) {
-                    log.error("Error processing itineraries", exception);
-                } else {
-                    log.info("All itinerary processing completed. Processed: {}, Submitted: {}",
+            CompletableFuture.allOf(activeFutures.toArray(new CompletableFuture[0])).join();
+
+            log.info("All itinerary processing completed. Processed: {}, Submitted: {}",
                             processedCount.get(), submittedCount.get());
-                }
-            });
-
-            allFutures.join();
 
         } catch (Exception e) {
             log.error("Error in streaming processing", e);
