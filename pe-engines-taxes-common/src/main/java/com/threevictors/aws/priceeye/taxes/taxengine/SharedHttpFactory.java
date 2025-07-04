@@ -3,15 +3,16 @@ package com.threevictors.aws.priceeye.taxes.taxengine;
 import java.net.http.HttpClient;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import java.util.concurrent.ExecutorService;
 
 public class SharedHttpFactory {
 
     private static SharedHttpFactory INSTANCE;
-    private static final Object LOCK = new Object();
 
     private final HttpClient httpClient;
+    private final ExecutorService executorService;
 
-    private SharedHttpFactory(int threadCount) {
+    private SharedHttpFactory(ExecutorService executorService, int threadCount) {
         // Increase connection pool size to match the number of worker threads
         int connectionPoolSize = threadCount;
         System.setProperty("jdk.httpclient.connectionPoolSize", String.valueOf(connectionPoolSize));
@@ -21,32 +22,27 @@ public class SharedHttpFactory {
         httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.of(30, ChronoUnit.SECONDS))
                 .version(HttpClient.Version.HTTP_2) // Use HTTP/2 for better performance
+                .executor( executorService )
                 .build();
+
+        this.executorService = executorService;
     }
 
-    public static SharedHttpFactory getInstance() {
-        if (INSTANCE == null) {
-            synchronized (LOCK) {
-                if (INSTANCE == null) {
-                    INSTANCE = new SharedHttpFactory(Runtime.getRuntime().availableProcessors() * 8);
-                }
-            }
-        }
+    public static SharedHttpFactory getInstance( ) {
         return INSTANCE;
     }
 
-    public static SharedHttpFactory getInstance(int threadCount) {
-        if (INSTANCE == null) {
-            synchronized (LOCK) {
-                if (INSTANCE == null) {
-                    INSTANCE = new SharedHttpFactory(threadCount);
-                }
-            }
-        }
+    public static SharedHttpFactory setupInstance(ExecutorService executorService, int threadCount) {
+        INSTANCE = new SharedHttpFactory(executorService, threadCount);
+
         return INSTANCE;
     }
 
     public HttpClient getHttpClient() {
         return httpClient;
+    }
+
+    public ExecutorService getExecutorService() {
+        return executorService;
     }
 }

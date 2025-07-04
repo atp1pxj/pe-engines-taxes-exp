@@ -8,6 +8,7 @@ import com.threevictors.aws.priceeye.taxes.loader.CommonOutputPEItinsLoader;
 import com.threevictors.aws.priceeye.taxes.model.taxengine.response.X1TaxRecordDataPoints;
 import com.threevictors.aws.priceeye.taxes.loader.X1TaxRecordDataPointsLoader;
 import com.threevictors.aws.priceeye.taxes.processor.PEItineraryTaxProcessor;
+import com.threevictors.aws.priceeye.taxes.taxengine.SharedHttpFactory;
 import com.threevictors.common.aws.s3.S3Util;
 import com.threevictors.common.dates.IntegerDate;
 import org.apache.logging.log4j.LogManager;
@@ -50,6 +51,8 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
         //executor = Executors.newFixedThreadPool(THREAD_COUNT);
         executor = Executors.newFixedThreadPool(totalThreadCount);
 
+        SharedHttpFactory.setupInstance( executor, totalThreadCount);
+
         commonOutputPEItinsLoader = new CommonOutputPEItinsLoader();
 
         s3Util = new S3Util();
@@ -60,7 +63,7 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
         Map<String, X1TaxRecordDataPoints> x1TaxRecordDataPointsMap = getX1TaxRecordDataPointsMap(fileBucket, bucketObjectKey);
 
         // Initialize the PEItineraryProcessor with the required dependencies
-        peItineraryTaxProcessor = new PEItineraryTaxProcessor( x1TaxRecordDataPointsMap, totalThreadCount );
+        peItineraryTaxProcessor = new PEItineraryTaxProcessor( x1TaxRecordDataPointsMap );
     }
 
 
@@ -91,7 +94,7 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
 
             //TODO: Check if this is still supposed to be totalThreadCount * 8 or just totalThreadCount.
             // Create a bounded semaphore to limit the number of concurrent tasks
-            Semaphore semaphore = new Semaphore(totalThreadCount * 8);
+            Semaphore semaphore = new Semaphore(8192 );
 
             // Keep track of active futures for proper cleanup
             List<CompletableFuture<Void>> activeFutures = new ArrayList<>();
@@ -110,32 +113,30 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
                                 log.info("Submitted {} itineraries for processing", currentCount);
                             }
 
-                            // Create a CompletableFuture for each itinerary
-                            CompletableFuture<Void> future = CompletableFuture.supplyAsync(() -> {
-                                try {
-                                    // Process the itinerary
-                                    return peItineraryTaxProcessor.processPEItinerary(itineraryPair.getX(), itineraryPair.getY(), salesDate);
-                                } catch (Exception e) {
-                                    log.error("Error processing itinerary", e);
-                                    return null;
-                                } finally {
-                                    // Release the permit back to the semaphore when the task is done
-                                    semaphore.release();
-                                    int processed = processedCount.incrementAndGet();
-                                    if (processed % 1000 == 0) {
-                                        log.info("Processed {} itineraries", processed);
-                                    }
-                                }
-                            }, executor).thenAccept(taxLadder -> {
-                                writeTaxComparison(pWriter, itineraryPair.getX(), itineraryPair.getY(), taxLadder);
-                            });
+                            // Process the itinerary
+                             CompletableFuture<TaxLadder> taxLadder = peItineraryTaxProcessor.processPEItinerary(itineraryPair.getX(), itineraryPair.getY(), salesDate);
+
+                            CompletableFuture<Void> future = taxLadder.thenAcceptAsync( ladder -> {
+                                 writeTaxComparison(pWriter, itineraryPair.getX(), itineraryPair.getY(), ladder);
+                                 // Release the permit back to the semaphore when the task is done
+                                 semaphore.release();
+                                 int processed = processedCount.incrementAndGet();
+                                 if (processed % 1000 == 0) {
+                                     log.info("Processed {} itineraries", processed);
+                                 }
+                             }, executor)
+                             .exceptionally( x -> {
+                                 semaphore.release();
+                                 return null;
+                             });
+
 
                             // Add to active futures and clean up completed ones periodically
                             synchronized (activeFutures) {
                                 activeFutures.add(future);
 
                                 // Periodically clean up completed futures to prevent memory buildup
-                                if (activeFutures.size() % 100 == 0) {
+                                if (activeFutures.size() % 1000 == 0) {
                                     activeFutures.removeIf(CompletableFuture::isDone);
                                 }
                             }

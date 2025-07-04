@@ -23,28 +23,27 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Properties;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 
 public class TaxEngineCommunicator {
 
     private static final Logger log = LogManager.getLogger(TaxEngineCommunicator.class);
 
     private HttpClient httpClient;
+    private ExecutorService executorService;
     private TaxEngineRequestBuilder taxEngineRequestBuilder;
     private Gson gson;
 
     private String sfeTaxEngineUrl;
 
-
     public TaxEngineCommunicator() {
-        this(Runtime.getRuntime().availableProcessors() * 8);
-    }
-
-    public TaxEngineCommunicator(int threadCount) {
         Properties p = ConfigurationReader.readProperties( "pe-engines-taxes.properties" );
         sfeTaxEngineUrl = p.getProperty("sfe.tax.engine.url").trim();
 
         // Configure HTTP client with optimized settings
-        httpClient = SharedHttpFactory.getInstance(threadCount).getHttpClient();
+        httpClient = SharedHttpFactory.getInstance().getHttpClient();
+        executorService = SharedHttpFactory.getInstance().getExecutorService();
 
         taxEngineRequestBuilder = new TaxEngineRequestBuilder();
 
@@ -54,7 +53,7 @@ public class TaxEngineCommunicator {
     }
 
 
-    public RootResponse sendRequest(String pointOfSale, PEItinerary itinerary, String queryId, int salesDate) {
+    public CompletableFuture<RootResponse> sendRequest(String pointOfSale, PEItinerary itinerary, String queryId, int salesDate ) {
 
         String request = taxEngineRequestBuilder.buildRequest( pointOfSale, itinerary, salesDate);
         //log.info("LN: " + itinerary.getChannel() + " JSON Request to taxengines: " + request);
@@ -76,14 +75,8 @@ public class TaxEngineCommunicator {
         requestBuilder.timeout(Duration.of(180, ChronoUnit.SECONDS));
         HttpRequest httpRequest = requestBuilder.build();
 
-        try {
-            HttpResponse<String> httpResponse = httpClient.send( httpRequest, HttpResponse.BodyHandlers.ofString());
+        CompletableFuture<HttpResponse<String>> httpResponse = httpClient.sendAsync( httpRequest, HttpResponse.BodyHandlers.ofString());
 
-            return gson.fromJson(httpResponse.body(), RootResponse.class);
-        }
-        catch (IOException|InterruptedException e) {
-            log.error("Failed to send request to TaxEngineCommunicator: " + e.getMessage(), e);
-            return null;
-        }
+        return httpResponse.thenApplyAsync(response -> gson.fromJson(response.body(), RootResponse.class), executorService);
     }
 }

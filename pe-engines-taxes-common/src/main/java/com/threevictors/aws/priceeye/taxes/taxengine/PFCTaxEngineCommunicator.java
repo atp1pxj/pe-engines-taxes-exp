@@ -24,6 +24,8 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Properties;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 
 //TODO: Refactor this class and the TaxEngineCommunicator class to streamline the code and remove redundancy.
 public class PFCTaxEngineCommunicator {
@@ -31,6 +33,7 @@ public class PFCTaxEngineCommunicator {
     private static final Logger log = LogManager.getLogger(PFCTaxEngineCommunicator.class);
 
     private HttpClient httpClient;
+    private ExecutorService executorService;
 
     private PFCEngineRequestBuilder pfcEngineRequestBuilder;
     private Gson gson;
@@ -38,14 +41,11 @@ public class PFCTaxEngineCommunicator {
     private String pfcTaxEngineUrl;
 
     public PFCTaxEngineCommunicator() {
-        this(Runtime.getRuntime().availableProcessors() * 8);
-    }
-
-    public PFCTaxEngineCommunicator(int threadCount) {
         Properties p = ConfigurationReader.readProperties( "pe-engines-taxes.properties" );
         pfcTaxEngineUrl = p.getProperty("pfc.tax.engine.url").trim();
 
-        httpClient = SharedHttpFactory.getInstance(threadCount).getHttpClient();
+        httpClient = SharedHttpFactory.getInstance().getHttpClient();
+        executorService = SharedHttpFactory.getInstance().getExecutorService();
 
         pfcEngineRequestBuilder = new PFCEngineRequestBuilder();
 
@@ -55,7 +55,7 @@ public class PFCTaxEngineCommunicator {
     }
 
 
-    public RootPFCResponse sendRequest(String pointOfSale, PEItinerary itinerary, String queryId, int salesDate) {
+    public CompletableFuture<RootPFCResponse> sendRequest(String pointOfSale, PEItinerary itinerary, String queryId, int salesDate) {
         String request = pfcEngineRequestBuilder.buildRequest( pointOfSale, itinerary, salesDate );
         //log.info("LN: " + itinerary.getChannel() + " JSON Request to PFC engines: " + request);
 
@@ -76,14 +76,8 @@ public class PFCTaxEngineCommunicator {
         requestBuilder.timeout(Duration.of(180, ChronoUnit.SECONDS));
         HttpRequest httpRequest = requestBuilder.build();
 
-        try {
-            HttpResponse<String> httpResponse = httpClient.send( httpRequest, HttpResponse.BodyHandlers.ofString());
+        CompletableFuture<HttpResponse<String>> httpResponse = httpClient.sendAsync( httpRequest, HttpResponse.BodyHandlers.ofString());
 
-            return gson.fromJson(httpResponse.body(), RootPFCResponse.class);
-        }
-        catch (IOException|InterruptedException e) {
-            log.error("Failed to send request to PFCTaxEngineCommunicator: " + e.getMessage(), e);
-            return null;
-        }
+        return httpResponse.thenApplyAsync(response -> gson.fromJson(response.body(), RootPFCResponse.class), executorService);
     }
 }
