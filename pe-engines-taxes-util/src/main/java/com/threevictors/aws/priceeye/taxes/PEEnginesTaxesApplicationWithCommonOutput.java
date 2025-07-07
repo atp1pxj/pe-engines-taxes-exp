@@ -88,7 +88,7 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
     }
 
 
-    private void processItinerariesStreaming(File tmpFile, int salesDate, String customer, String schemaSuffix, int limit) {
+    private void processItinerariesStreaming(File tmpFile, int salesDate, String customer, String pos, String schemaSuffix, int limit) {
         try (PrintWriter pWriter = new PrintWriter(tmpFile)) {
             log.info("Starting streaming processing of itineraries");
 
@@ -102,7 +102,7 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
             AtomicInteger submittedCount = new AtomicInteger(0);
 
             // Stream and process itineraries
-            commonOutputPEItinsLoader.streamPEItins(salesDate, customer, schemaSuffix, limit,
+            commonOutputPEItinsLoader.streamPEItins(salesDate, customer, pos, schemaSuffix, limit,
                     itineraryPair -> {
                         try {
                             // Acquire a permit from the semaphore before submitting a new task
@@ -280,7 +280,8 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
     public static void main(String[] args) throws Exception {
         if (args.length < 2) {
             throw new IllegalArgumentException("Mandatory arguments - 'salesDate' with Format: yyyyMMdd"
-                    + " and 'customer' need to be provided.");
+                    + " and 'customer' need to be provided.\n"
+                    + "Optional arguments in order: pos, totalThreadCount, limit, schemaSuffix");
         }
 
         String salesDateStr = args[0];
@@ -292,33 +293,39 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
         String customer = args[1];
 
         // Optional arguments
+        String pos = "*";
         int totalThreadCount = Runtime.getRuntime().availableProcessors() * 8;
         int limit = 100;
         String schemaSuffix = "";
 
         if (args.length > 2) {
+            pos = args[2];
+        }
+
+        if (args.length > 3) {
             try {
-                totalThreadCount = Integer.parseInt(args[2]);
+                totalThreadCount = Integer.parseInt(args[3]);
             } catch (NumberFormatException e) {
                 log.warn("Invalid 'totalThreadCount'. Using default value: Runtime.getRuntime().availableProcessors() * 8");
             }
         }
 
-        if (args.length > 3) {
+        if (args.length > 4) {
             try {
-                limit = Integer.parseInt(args[3]);
+                limit = Integer.parseInt(args[4]);
             } catch (NumberFormatException e) {
                 log.warn("Invalid 'limit' format. Using default value: 100");
             }
         }
 
-        if (args.length > 4) {
-            schemaSuffix = (args[4] != null) ? args[4].trim() : "";
+        if (args.length > 5) {
+            schemaSuffix = (args[5] != null) ? args[5].trim() : "";
         }
 
         // Log the arguments for verification
         log.info("Sales Date: {}", salesDate);
         log.info("Customer: {}", customer);
+        log.info("POS: {}", pos);
         log.info("totalThreadCount: {}", totalThreadCount);
         log.info("Limit: {}", limit);
         log.info("Schema Suffix: {}", schemaSuffix);
@@ -335,7 +342,7 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
             //starttime
             LocalDateTime startTime = LocalDateTime.now();
             log.info("Starting processing at {}", startTime);
-            currentApp.processItinerariesStreaming(logFile, salesDate, customer, schemaSuffix, limit);
+            currentApp.processItinerariesStreaming(logFile, salesDate, customer, pos, schemaSuffix, limit);
 
             S3Util s3Util = new S3Util();
             String remoteFileName = String.format("%d/%02d/%02d/%s", IntegerDate.getYear(salesDate), IntegerDate.getMonth(salesDate), IntegerDate.getDay(salesDate), UUID.randomUUID());

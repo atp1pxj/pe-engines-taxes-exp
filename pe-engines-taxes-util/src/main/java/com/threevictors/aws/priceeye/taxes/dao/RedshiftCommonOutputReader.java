@@ -31,7 +31,7 @@ public class RedshiftCommonOutputReader extends DatabaseReader {
         initialize(1);
     }
 
-    private String buildQuery( int salesDate, String customer, String schemaSuffix, int limit) {
+    private String buildQuery( int salesDate, String customer, String pos, String schemaSuffix, int limit) {
         //Note: customer_collection_name column not present anymore in the table
         String query = "select feed, observation_date, observation_time, reference, source, pos, origin, destination, outbound_gcm, los, outbound_travel_stop_over, " +
                 "inbound_travel_stop_over, carrier, dominant_marketing_carrier, outbound_dominant_marketing_carrier, outbound_marketing_carrier_list, " +
@@ -51,19 +51,23 @@ public class RedshiftCommonOutputReader extends DatabaseReader {
             query = query + " and customer='" + customer + "'";
         }
 
+        if ( pos != null && !"*".equals( pos ) ) {
+            query = query + " and pos='" + pos + "'";
+        }
+
         if ( limit > 0 ) {
             query = query + " limit " + limit;
         }
 
         return query;
     }
-    
-    
-    public List<PECommonOutput> getCommonOutput(int salesDate, String customer, String schemaSuffix, int limit ) {
+
+
+    public List<PECommonOutput> getCommonOutput(int salesDate, String customer, String pos, String schemaSuffix, int limit ) {
         List<PECommonOutput> commonOutputList = new ArrayList<>();
-        
-        String query = buildQuery( salesDate, customer, schemaSuffix, limit );
- 
+
+        String query = buildQuery( salesDate, customer, pos, schemaSuffix, limit );
+
         //try (Connection connection = getConnection(); Statement statement = connection.createStatement() ) {
         Connection connection = null;
         try{
@@ -194,25 +198,25 @@ public class RedshiftCommonOutputReader extends DatabaseReader {
 
 
 
-    public void streamCommonOutput(int salesDate, String customer, String schemaSuffix, int limit, 
+    public void streamCommonOutput(int salesDate, String customer, String pos, String schemaSuffix, int limit, 
                                    Consumer<PECommonOutput> processor) {
-        String query = buildQuery(salesDate, customer, schemaSuffix, limit);
-        
+        String query = buildQuery(salesDate, customer, pos, schemaSuffix, limit);
+
         try (Connection connection = getConnection();
              Statement statement = connection.createStatement()) {
-            
+
             // Configure for streaming
             statement.setFetchSize( FETCH_SIZE ); // Fetch 1000 rows at a time
-            
+
             // For large result sets, you might also want to set these
             statement.setQueryTimeout( QUERY_TIMEOUT ); // No timeout for long-running queries
-            
+
             try (ResultSet resultSet = statement.executeQuery(query)) {
                 int processedCount = 0;
                 while (resultSet.next()) {
                     PECommonOutput commonOutput = parseCommonOutput(resultSet);
                     processor.accept(commonOutput);
-                    
+
                     processedCount++;
                     if (processedCount % 1000 == 0) {
                         log.info("Streamed {} records from database", processedCount);
@@ -238,16 +242,18 @@ public class RedshiftCommonOutputReader extends DatabaseReader {
             // Call getCommonOutput with the specified parameters
             int salesDate = 20250626;
             String customer = "AA";
+            String pos = "*";
             String schemaSuffix = "";
             int limit = 10;
 
             System.out.println("Fetching common output data with parameters:");
             System.out.println("Sales Date: " + salesDate);
             System.out.println("Customer: " + customer);
+            System.out.println("POS: " + pos);
             System.out.println("Schema Suffix: " + schemaSuffix);
             System.out.println("Limit: " + limit);
 
-            List<PECommonOutput> results = reader.getCommonOutput(salesDate, customer, schemaSuffix, limit);
+            List<PECommonOutput> results = reader.getCommonOutput(salesDate, customer, pos, schemaSuffix, limit);
 
             // Print the results
             System.out.println("\nResults found: " + results.size());
