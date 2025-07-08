@@ -1,7 +1,5 @@
 package com.threevictors.aws.priceeye.taxes.processor;
 
-import com.threevictors.aws.configreader.configuration.reader.heavy.ConfigurationReader;
-import com.threevictors.aws.data.aws.RawLeg;
 import com.threevictors.aws.data.priceeye.PEItinerary;
 import com.threevictors.aws.priceeye.taxes.data.TaxLadder;
 import com.threevictors.aws.priceeye.taxes.model.pfcengine.response.Charge;
@@ -11,19 +9,13 @@ import com.threevictors.aws.priceeye.taxes.taxengine.PFCTaxEngineCommunicator;
 import com.threevictors.aws.priceeye.taxes.taxengine.SharedHttpFactory;
 import com.threevictors.aws.priceeye.taxes.taxengine.TaxEngineCommunicator;
 
-import com.threevictors.common.aws.s3.S3Util;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -187,7 +179,11 @@ public class PEItineraryTaxProcessor {
         //Empty inbound legs for outbound itinerary
         obOwItin.setInboundLegs(List.of());
 
-        CompletableFuture<RootPFCResponse> rootPFCResponse = pfcTaxEngineCommunicator.sendRequest(pointOfSale, obOwItin, queryId, salesDate);
+        //Adding the fareConstructionText field to continue the capture of HTTP request. This is not feasible as the value will get reflected on the original itin
+        //obOwItin.setFareConstructionText(currentItin.getFareConstructionText());
+
+        //Passing the original PEItinerary currentItin to capture the applicable PFC HTTP request body
+        CompletableFuture<RootPFCResponse> rootPFCResponse = pfcTaxEngineCommunicator.sendRequest(pointOfSale, obOwItin, queryId, salesDate, currentItin);
 
         CompletableFuture<Void> processResult = rootPFCResponse.thenAcceptAsync(response -> {
                     processPFC(response, pfcTaxes);
@@ -202,7 +198,7 @@ public class PEItineraryTaxProcessor {
             ibOwItin.setOutboundLegs(currentItin.getInboundLegs());
             ibOwItin.setInboundLegs(List.of());
 
-            processResult = processResult.thenComposeAsync( x -> pfcTaxEngineCommunicator.sendRequest(pointOfSale, ibOwItin, queryId, salesDate))
+            processResult = processResult.thenComposeAsync( x -> pfcTaxEngineCommunicator.sendRequest(pointOfSale, ibOwItin, queryId, salesDate, currentItin))
                     .thenAcceptAsync( response -> processPFC(response, pfcTaxes), SharedHttpFactory.getInstance().getExecutorService());
         }
 

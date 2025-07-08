@@ -14,7 +14,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 
-import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.http.HttpClient;
@@ -26,10 +25,13 @@ import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 
+import com.google.gson.JsonParser;
+
 public class TaxEngineCommunicator {
 
     private static final Logger log = LogManager.getLogger(TaxEngineCommunicator.class);
-
+    private static final String SFE_HTTP_REQUEST_BODY_BEGIN = " SFE_JSON_REQUEST < ";
+    private static final String SFE_REQUEST_END = " >; ";
     private HttpClient httpClient;
     private ExecutorService executorService;
     private TaxEngineRequestBuilder taxEngineRequestBuilder;
@@ -52,11 +54,16 @@ public class TaxEngineCommunicator {
                 .create();
     }
 
+    public CompletableFuture<RootResponse> sendRequest(String pointOfSale, PEItinerary itinerary, String queryId, int salesDate) {
 
-    public CompletableFuture<RootResponse> sendRequest(String pointOfSale, PEItinerary itinerary, String queryId, int salesDate ) {
+        //String request = taxEngineRequestBuilder.buildRequest(pointOfSale, itinerary, salesDate);
+        //Minify the JSON request
+        String request = JsonParser.parseString(taxEngineRequestBuilder.buildRequest(pointOfSale, itinerary, salesDate)).toString();
 
-        String request = taxEngineRequestBuilder.buildRequest( pointOfSale, itinerary, salesDate);
+
         //log.info("LN: " + itinerary.getChannel() + " JSON Request to taxengines: " + request);
+        //Set the HTTP request body in the fareConstruction field temp'ly for Engine debugging purposes.
+        itinerary.setFareConstructionText(SFE_HTTP_REQUEST_BODY_BEGIN + request + SFE_REQUEST_END);
 
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder();
         requestBuilder.setHeader("Content-Type", "application/json");

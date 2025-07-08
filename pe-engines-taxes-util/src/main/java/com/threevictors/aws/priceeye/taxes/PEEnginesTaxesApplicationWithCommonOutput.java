@@ -229,6 +229,12 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         csvLine.append(now.format(formatter));
 
+        // store the tax-engine HTTP request JSON, PFC request JSON as well.
+        // Escape the " in the json with \" not """". The latter is for excel / numbers but it will not work with redshift parsing.
+        String fareConstructionText = currentItin.getFareConstructionText().replace("\"", "\\\"");
+        //This wrapping is needed otherwise the csv will fail.
+        csvLine.append(",").append("\"").append(fareConstructionText).append("\"");
+
         synchronized (pWriter) {
             pWriter.println( csvLine );
         }

@@ -2,6 +2,7 @@ package com.threevictors.aws.priceeye.taxes.taxengine;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonParser;
 import com.threevictors.aws.configreader.configuration.reader.heavy.ConfigurationReader;
 import com.threevictors.aws.data.priceeye.PEItinerary;
 import com.threevictors.aws.priceeye.taxes.model.pfcengine.response.RootPFCResponse;
@@ -15,7 +16,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 
-import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.http.HttpClient;
@@ -31,6 +31,9 @@ import java.util.concurrent.ExecutorService;
 public class PFCTaxEngineCommunicator {
 
     private static final Logger log = LogManager.getLogger(PFCTaxEngineCommunicator.class);
+
+    private static final String PFC_HTTP_REQUEST_BODY_BEGIN = " PFC_JSON_REQUEST < ";
+    private static final String PFC_REQUEST_END = " >; ";
 
     private HttpClient httpClient;
     private ExecutorService executorService;
@@ -55,9 +58,16 @@ public class PFCTaxEngineCommunicator {
     }
 
 
-    public CompletableFuture<RootPFCResponse> sendRequest(String pointOfSale, PEItinerary itinerary, String queryId, int salesDate) {
-        String request = pfcEngineRequestBuilder.buildRequest( pointOfSale, itinerary, salesDate );
+    public CompletableFuture<RootPFCResponse> sendRequest(String pointOfSale, PEItinerary itinerary, String queryId, int salesDate, PEItinerary originalItin) {
+        //String request = pfcEngineRequestBuilder.buildRequest( pointOfSale, itinerary, salesDate );
         //log.info("LN: " + itinerary.getChannel() + " JSON Request to PFC engines: " + request);
+
+        //Minify the resulting json
+        String request = JsonParser.parseString( pfcEngineRequestBuilder.buildRequest( pointOfSale, itinerary, salesDate ) ).toString();
+
+        //Added mainly for capturing the associated PFC requests. Can remove later
+        String appendPFCRequestBody = new StringBuilder(originalItin.getFareConstructionText()).append(PFC_HTTP_REQUEST_BODY_BEGIN).append(request).append(PFC_REQUEST_END).toString();
+        originalItin.setFareConstructionText(appendPFCRequestBody);
 
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder();
         requestBuilder.setHeader("Content-Type", "application/json");
