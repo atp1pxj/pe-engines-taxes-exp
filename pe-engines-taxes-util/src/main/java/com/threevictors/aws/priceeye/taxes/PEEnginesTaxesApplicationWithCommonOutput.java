@@ -110,6 +110,7 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
             List<CompletableFuture<Void>> activeFutures = new ArrayList<>();
             AtomicInteger processedCount = new AtomicInteger(0);
             AtomicInteger submittedCount = new AtomicInteger(0);
+            AtomicInteger tossedCount = new AtomicInteger(0);
 
             // Stream and process itineraries
             commonOutputPEItinsLoader.streamPEItins(salesDate, customer, pos, schemaSuffix, limit,
@@ -138,24 +139,7 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
                                         // Check if hours between this leg and the next leg >= 12
                                         if (hoursBetween(firstLeg, secondLeg) >= 12) {
                                             shouldTossItinerary = true;
-
-                                            log.debug("Tossing itinerary due to OUTbound 12-hour stopover in US between {} and {}. Legs info -> Leg {} {}: {} - {}: {} >> Leg {} {}: {} - {}: {} ",
-                                                    firstLeg.getDestinationAirportCode(), secondLeg.getOriginAirportCode(),
-
-                                                    i, firstLeg.getOriginAirportCode(),
-                                                    String.format("%d %04d", firstLeg.getDepartDate(), firstLeg.getDepartTime()),
-                                                    firstLeg.getDestinationAirportCode(),
-                                                    String.format("%d %04d", firstLeg.getArriveDate(), firstLeg.getArriveTime()),
-
-                                                    i+1, secondLeg.getOriginAirportCode(),
-                                                    String.format("%d %04d", secondLeg.getDepartDate(), secondLeg.getDepartTime()),
-                                                    secondLeg.getDestinationAirportCode(),
-                                                    String.format("%d %04d", secondLeg.getArriveDate(), secondLeg.getArriveTime())
-
-
-                                            );
-
-
+                                            tossedCount.incrementAndGet();
                                             break; // No need to check further if we're tossing the itinerary
                                         }
                                     }
@@ -176,23 +160,7 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
                                             // Check if hours between this leg and the next leg >= 12
                                             if (hoursBetween(firstLeg, secondLeg) >= 12) {
                                                 shouldTossItinerary = true;
-
-                                                log.debug("Tossing itinerary due to INbound 12-hour stopover in US between {} and {}. Legs info -> Leg {} {}: {} - {}: {} >> Leg {} {}: {} - {}: {} ",
-                                                        firstLeg.getDestinationAirportCode(), secondLeg.getOriginAirportCode(),
-                                                        i, firstLeg.getOriginAirportCode(),
-                                                        String.format("%d %04d", firstLeg.getDepartDate(), firstLeg.getDepartTime()),
-                                                        firstLeg.getDestinationAirportCode(),
-                                                        String.format("%d %04d", firstLeg.getArriveDate(), firstLeg.getArriveTime()),
-
-                                                        i+1, secondLeg.getOriginAirportCode(),
-                                                        String.format("%d %04d", secondLeg.getDepartDate(), secondLeg.getDepartTime()),
-                                                        secondLeg.getDestinationAirportCode(),
-                                                        String.format("%d %04d", secondLeg.getArriveDate(), secondLeg.getArriveTime())
-
-
-                                                );
-
-
+                                                tossedCount.incrementAndGet();
                                                 break; // No need to check further if we're tossing the itinerary
                                             }
                                         }
@@ -218,7 +186,8 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
                                     // Check if they don't match (toothy grin)
                                     if (!obl1Orig.equalsIgnoreCase(ibl2Dest)) {
                                         shouldTossItinerary = true;
-                                        log.debug("Tossing itinerary due to toothy grin: " + obl1Orig + " != " + ibl2Dest);
+                                        //log.debug("Tossing itinerary due to toothy grin: " + obl1Orig + " != " + ibl2Dest);
+                                        tossedCount.incrementAndGet();
                                     }
                                 }
                             }
@@ -273,8 +242,10 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
 
             CompletableFuture.allOf(activeFutures.toArray(new CompletableFuture[0])).join();
 
-            log.info("All itinerary processing completed. Processed: {}, Submitted: {}",
-                            processedCount.get(), submittedCount.get());
+            /*log.info("All itinerary processing completed. Processed: {}, Submitted: {}",
+                            processedCount.get(), submittedCount.get());*/
+            log.info("All itinerary processing completed. Processed: {}, Submitted: {}, Tossed: {}",
+                    processedCount.get(), submittedCount.get(), tossedCount.get());
 
         } catch (Exception e) {
             log.error("Error in streaming processing", e);
