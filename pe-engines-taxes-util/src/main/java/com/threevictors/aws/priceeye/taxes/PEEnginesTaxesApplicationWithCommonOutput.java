@@ -3,6 +3,7 @@ package com.threevictors.aws.priceeye.taxes;
 import com.threevictors.aws.configreader.configuration.reader.heavy.ConfigurationReader;
 import com.threevictors.aws.data.aws.RawLeg;
 import com.threevictors.aws.data.priceeye.PEItinerary;
+import com.threevictors.aws.priceeye.taxes.dao.MetadataReader;
 import com.threevictors.aws.priceeye.taxes.data.TaxLadder;
 import com.threevictors.aws.priceeye.taxes.loader.CommonOutputPEItinsLoader;
 import com.threevictors.aws.priceeye.taxes.model.taxengine.response.X1TaxRecordDataPoints;
@@ -10,6 +11,7 @@ import com.threevictors.aws.priceeye.taxes.loader.X1TaxRecordDataPointsLoader;
 import com.threevictors.aws.priceeye.taxes.processor.PEItineraryTaxProcessor;
 import com.threevictors.aws.priceeye.taxes.taxengine.SharedHttpFactory;
 import com.threevictors.common.aws.s3.S3Util;
+import com.threevictors.common.database.dao.aurora.metadata.AuroraMetadataReader;
 import com.threevictors.common.dates.IntegerDate;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -23,6 +25,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 /**
  * This class loads PEItineraries from CommonOutput data and processes them in parallel
@@ -40,10 +43,18 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
 
     private final PEItineraryTaxProcessor peItineraryTaxProcessor;
     private final CommonOutputPEItinsLoader commonOutputPEItinsLoader;
+    private static Set<String> usDomesticAirports;
 
     private final S3Util s3Util;
 
     public PEEnginesTaxesApplicationWithCommonOutput(int totalThreadCount) throws Exception {
+
+        // Get US Domestic airports
+        //AuroraMetadataReader metadataReader = new AuroraMetadataReader();
+        MetadataReader metadataReader = new MetadataReader();
+        usDomesticAirports = metadataReader.getAirportCountryMap().entrySet().stream().filter(entry -> "US".equals(entry.getValue()) || "CA".equals(entry.getValue())).map(Map.Entry::getKey).collect(Collectors.toSet());
+        metadataReader.shutdown();
+
         // Store the thread count
         this.totalThreadCount = totalThreadCount;
 
@@ -65,7 +76,6 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
         // Initialize the PEItineraryProcessor with the required dependencies
         peItineraryTaxProcessor = new PEItineraryTaxProcessor( x1TaxRecordDataPointsMap );
     }
-
 
 
     private Map<String, X1TaxRecordDataPoints> getX1TaxRecordDataPointsMap( String fileBucket, String bucketObjectKey ) throws Exception {
@@ -107,6 +117,76 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
                         try {
                             // Acquire a permit from the semaphore before submitting a new task
                             semaphore.acquire();
+
+                            // Get the PEItinerary from the pair
+                            PEItinerary peItinerary = itineraryPair.getY();
+
+                            // Check if we need to toss this itinerary based on the requirements
+                            boolean shouldTossItinerary = false;
+
+                            // Begin 12 hour stopover logic itinerary tossing
+                            // Check outbound legs
+                            List<RawLeg> outboundLegs = peItinerary.getOutboundLegs();
+                            if (outboundLegs != null && outboundLegs.size() > 1) {
+                                RawLeg firstLeg = outboundLegs.get(0);
+                                RawLeg secondLeg = outboundLegs.get(1);
+
+                                // Check if the first leg's destination is in the US
+                                if (isUSAirport(firstLeg.getDestinationAirportCode())) {
+                                    // Check if hours between this leg and the next leg >= 12
+                                    if (hoursBetween(firstLeg, secondLeg) >= 12) {
+                                        shouldTossItinerary = true;
+                                        log.debug("Tossing itinerary due to outbound 12-hour stopover in US between {} and {}", firstLeg.getDestinationAirportCode(), secondLeg.getOriginAirportCode());
+                                    }
+                                }
+                            }
+
+                            // Check inbound legs if the itinerary hasn't been tossed yet
+                            if (!shouldTossItinerary) {
+                                List<RawLeg> inboundLegs = peItinerary.getInboundLegs();
+                                if (inboundLegs != null && inboundLegs.size() > 1) {
+                                    RawLeg firstLeg = inboundLegs.get(0);
+                                    RawLeg secondLeg = inboundLegs.get(1);
+
+                                    // Check if the first leg's destination is in the US
+                                    if (isUSAirport(firstLeg.getDestinationAirportCode())) {
+                                        // Check if hours between this leg and the next leg >= 12
+                                        if (hoursBetween(firstLeg, secondLeg) >= 12) {
+                                            shouldTossItinerary = true;
+                                            log.debug("Tossing itinerary due to inbound 12-hour stopover in US between {} and {}", firstLeg.getDestinationAirportCode(), secondLeg.getOriginAirportCode());
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Check for "toothy grins" if the itinerary hasn't been tossed yet
+                            if (!shouldTossItinerary) {
+                                List<RawLeg> outboundLegs2 = peItinerary.getOutboundLegs();
+                                List<RawLeg> inboundLegs2 = peItinerary.getInboundLegs();
+
+                                // Only check if both outbound and inbound legs exist
+                                if (outboundLegs2 != null && !outboundLegs2.isEmpty() && 
+                                    inboundLegs2 != null && !inboundLegs2.isEmpty()) {
+
+                                    // Get the first outbound leg's origin airport code
+                                    String obl1Orig = outboundLegs2.get(0).getOriginAirportCode();
+
+                                    // Get the last inbound leg's destination airport code
+                                    String ibl2Dest = inboundLegs2.get(inboundLegs2.size() - 1).getDestinationAirportCode();
+
+                                    // Check if they don't match (toothy grin)
+                                    if (!obl1Orig.equalsIgnoreCase(ibl2Dest)) {
+                                        shouldTossItinerary = true;
+                                        log.debug("Tossing itinerary due to toothy grin: " + obl1Orig + " != " + ibl2Dest);
+                                    }
+                                }
+                            }
+
+                            // If we should toss the itinerary, release the semaphore and skip processing
+                            if (shouldTossItinerary) {
+                                semaphore.release();
+                                return;
+                            }
 
                             int currentCount = submittedCount.incrementAndGet();
                             if (currentCount % 1000 == 0) {
@@ -279,6 +359,41 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
 
         if (mismatchFound) {
             log.info("\n");
+        }
+    }
+
+    /**
+     * Determines whether the given airport code represents a US domestic airport.
+     * @param airportCode the code of the airport to be checked; must not be null or empty
+     * @return true if the airportCode represents a US domestic airport, false otherwise
+     */
+    private static boolean isUSAirport(String airportCode) {
+        if (airportCode == null || airportCode.isEmpty())  {
+            return false;
+        }
+        return usDomesticAirports.contains(airportCode);
+    }
+
+    private static long hoursBetween(RawLeg leg1, RawLeg leg2) {
+        try {
+            /*String dt1 = leg1.getDepartDate() + " " + String.format("%04d", Integer.parseInt(leg1.getArriveTime()));
+            String dt2 = leg2.getArriveDate() + " " + String.format("%04d", Integer.parseInt(leg2.getDepartTime()));*/
+
+            String dt1 = leg1.getDepartDate() + " " + String.format("%04d", leg1.getArriveTime());
+            String dt2 = leg2.getArriveDate() + " " + String.format("%04d", leg2.getDepartTime());
+
+            java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd HHmm");
+            java.time.LocalDateTime ldt1 = java.time.LocalDateTime.parse(dt1, formatter);
+            java.time.LocalDateTime ldt2 = java.time.LocalDateTime.parse(dt2, formatter);
+            // Calculate the absolute duration between the two times
+            java.time.Duration duration = java.time.Duration.between(ldt1, ldt2);
+            if (duration.isNegative()) {
+                duration = duration.negated();
+            }
+            return duration.toHours();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return 0;
         }
     }
 
