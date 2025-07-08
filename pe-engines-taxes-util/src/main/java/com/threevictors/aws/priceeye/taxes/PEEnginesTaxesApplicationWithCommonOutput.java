@@ -128,15 +128,36 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
                             // Check outbound legs
                             List<RawLeg> outboundLegs = peItinerary.getOutboundLegs();
                             if (outboundLegs != null && outboundLegs.size() > 1) {
-                                RawLeg firstLeg = outboundLegs.get(0);
-                                RawLeg secondLeg = outboundLegs.get(1);
+                                // Loop through all consecutive legs
+                                for (int i = 0; i < outboundLegs.size() - 1; i++) {
+                                    RawLeg firstLeg = outboundLegs.get(i);
+                                    RawLeg secondLeg = outboundLegs.get(i + 1);
 
-                                // Check if the first leg's destination is in the US
-                                if (isUSAirport(firstLeg.getDestinationAirportCode())) {
-                                    // Check if hours between this leg and the next leg >= 12
-                                    if (hoursBetween(firstLeg, secondLeg) >= 12) {
-                                        shouldTossItinerary = true;
-                                        log.debug("Tossing itinerary due to outbound 12-hour stopover in US between {} and {}", firstLeg.getDestinationAirportCode(), secondLeg.getOriginAirportCode());
+                                    // Check if the first leg's destination is in the US
+                                    if (isUSAirport(firstLeg.getDestinationAirportCode())) {
+                                        // Check if hours between this leg and the next leg >= 12
+                                        if (hoursBetween(firstLeg, secondLeg) >= 12) {
+                                            shouldTossItinerary = true;
+
+                                            log.debug("Tossing itinerary due to OUTbound 12-hour stopover in US between {} and {}. Legs info -> Leg {} {}: {} - {}: {} >> Leg {} {}: {} - {}: {} ",
+                                                    firstLeg.getDestinationAirportCode(), secondLeg.getOriginAirportCode(),
+
+                                                    i, firstLeg.getOriginAirportCode(),
+                                                    String.format("%d %04d", firstLeg.getDepartDate(), firstLeg.getDepartTime()),
+                                                    firstLeg.getDestinationAirportCode(),
+                                                    String.format("%d %04d", firstLeg.getArriveDate(), firstLeg.getArriveTime()),
+
+                                                    i+1, secondLeg.getOriginAirportCode(),
+                                                    String.format("%d %04d", secondLeg.getDepartDate(), secondLeg.getDepartTime()),
+                                                    secondLeg.getDestinationAirportCode(),
+                                                    String.format("%d %04d", secondLeg.getArriveDate(), secondLeg.getArriveTime())
+
+
+                                            );
+
+
+                                            break; // No need to check further if we're tossing the itinerary
+                                        }
                                     }
                                 }
                             }
@@ -145,15 +166,35 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
                             if (!shouldTossItinerary) {
                                 List<RawLeg> inboundLegs = peItinerary.getInboundLegs();
                                 if (inboundLegs != null && inboundLegs.size() > 1) {
-                                    RawLeg firstLeg = inboundLegs.get(0);
-                                    RawLeg secondLeg = inboundLegs.get(1);
+                                    // Loop through all consecutive legs
+                                    for (int i = 0; i < inboundLegs.size() - 1; i++) {
+                                        RawLeg firstLeg = inboundLegs.get(i);
+                                        RawLeg secondLeg = inboundLegs.get(i + 1);
 
-                                    // Check if the first leg's destination is in the US
-                                    if (isUSAirport(firstLeg.getDestinationAirportCode())) {
-                                        // Check if hours between this leg and the next leg >= 12
-                                        if (hoursBetween(firstLeg, secondLeg) >= 12) {
-                                            shouldTossItinerary = true;
-                                            log.debug("Tossing itinerary due to inbound 12-hour stopover in US between {} and {}", firstLeg.getDestinationAirportCode(), secondLeg.getOriginAirportCode());
+                                        // Check if the first leg's destination is in the US
+                                        if (isUSAirport(firstLeg.getDestinationAirportCode())) {
+                                            // Check if hours between this leg and the next leg >= 12
+                                            if (hoursBetween(firstLeg, secondLeg) >= 12) {
+                                                shouldTossItinerary = true;
+
+                                                log.debug("Tossing itinerary due to INbound 12-hour stopover in US between {} and {}. Legs info -> Leg {} {}: {} - {}: {} >> Leg {} {}: {} - {}: {} ",
+                                                        firstLeg.getDestinationAirportCode(), secondLeg.getOriginAirportCode(),
+                                                        i, firstLeg.getOriginAirportCode(),
+                                                        String.format("%d %04d", firstLeg.getDepartDate(), firstLeg.getDepartTime()),
+                                                        firstLeg.getDestinationAirportCode(),
+                                                        String.format("%d %04d", firstLeg.getArriveDate(), firstLeg.getArriveTime()),
+
+                                                        i+1, secondLeg.getOriginAirportCode(),
+                                                        String.format("%d %04d", secondLeg.getDepartDate(), secondLeg.getDepartTime()),
+                                                        secondLeg.getDestinationAirportCode(),
+                                                        String.format("%d %04d", secondLeg.getArriveDate(), secondLeg.getArriveTime())
+
+
+                                                );
+
+
+                                                break; // No need to check further if we're tossing the itinerary
+                                            }
                                         }
                                     }
                                 }
@@ -390,6 +431,7 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
             if (duration.isNegative()) {
                 duration = duration.negated();
             }
+            //log.debug("Duration between {} and {} is {} hours", dt1, dt2, duration.toHours());
             return duration.toHours();
         } catch (Exception e) {
             e.printStackTrace();
