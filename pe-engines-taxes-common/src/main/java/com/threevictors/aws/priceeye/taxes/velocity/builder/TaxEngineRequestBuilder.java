@@ -19,7 +19,8 @@ public class TaxEngineRequestBuilder extends AbstractEngineRequestBuilder<TaxEng
 
     public TaxEngineRequestBuilder() {
         super();
-        oagRecordCache2 = new PEOagRecordCache2(1000); // Initialize with a cache size of 1000
+        //oagRecordCache2 = new PEOagRecordCache2(1000); // Initialize with a cache size of 1000
+        oagRecordCache2 = new PEOagRecordCache2(20000);
         oagRecordCache2.initialize();
     }
 
