@@ -56,8 +56,18 @@ public class CommonOutputConverter  implements Serializable {
             itinerary.setOutBrands(commonOutput.getOutbound_fare_family());
             itinerary.setInBrands(commonOutput.getInbound_fare_family());
 
-            itinerary.setOutboundLegs(buildOutboundLegList(commonOutput));
-            itinerary.setInboundLegs(buildInboundLegList(commonOutput));
+            List<RawLeg> outboundLegs = buildOutboundLegList(commonOutput);
+
+            // will be null if more than 2 legs
+            if (outboundLegs == null) return null;
+
+            itinerary.setOutboundLegs(outboundLegs);
+
+            List<RawLeg> inboundLegs = buildInboundLegList(commonOutput);
+
+            if (inboundLegs == null) return null;
+
+            itinerary.setInboundLegs( inboundLegs );
 
 
             if (commonOutput.getOutbound_total_flight_duration() == 0) {
@@ -133,6 +143,8 @@ public class CommonOutputConverter  implements Serializable {
     private List<RawLeg> buildOutboundLegList( PECommonOutput commonOutput ) {
         int outboundLegCount = countPipes( commonOutput.getOutbound_marketing_carrier_list() ) + 1;
 
+        if ( outboundLegCount > 2 ) return null;
+
         List<RawLeg> outboundLegList = new ArrayList<>();
 
         if ( outboundLegCount == 1 ) {
@@ -141,7 +153,7 @@ public class CommonOutputConverter  implements Serializable {
             //
             RawLeg rawLeg = new RawLeg();
 
-            rawLeg.setNumberOfStops( getStops( commonOutput.getOutbound_travel_stop_over() ) );
+            rawLeg.setNumberOfStops( 0 );
             rawLeg.setDurationInMinutes( getDuration( commonOutput.getOutbound_flight_duration() ) );
             rawLeg.setOriginAirportCode( commonOutput.getOrigin() );
             rawLeg.setDestinationAirportCode( commonOutput.getDestination() );
@@ -158,7 +170,7 @@ public class CommonOutputConverter  implements Serializable {
             rawLeg.setFareClass( commonOutput.getOutbound_fare_basis() );
             rawLeg.setCabin( commonOutput.getOutbound_cabins() );
             rawLeg.setNumberOfSeats( getSeatCount( commonOutput.getOutbound_available_seats() ) );
-            rawLeg.setIntermediateAirports( buildList( commonOutput.getOutbound_travel_stop_over() ) );
+//            rawLeg.setIntermediateAirports( List.of() );
             rawLeg.setBrandId( commonOutput.getOutbound_fare_family() );
 
             outboundLegList.add( rawLeg );
@@ -226,8 +238,9 @@ public class CommonOutputConverter  implements Serializable {
             return null;
         }
 
-
         int inboundLegCount = countPipes( commonOutput.getInbound_marketing_carrier_list() ) + 1;
+
+        if ( inboundLegCount > 2 ) return null;
 
         List<RawLeg> inboundLegList = new ArrayList<>();
 
@@ -237,7 +250,7 @@ public class CommonOutputConverter  implements Serializable {
             //
             RawLeg rawLeg = new RawLeg();
 
-            rawLeg.setNumberOfStops( getStops( commonOutput.getInbound_travel_stop_over() ) );
+            rawLeg.setNumberOfStops( 0 );
             rawLeg.setDurationInMinutes( getDuration( commonOutput.getInbound_flight_duration() ) );
             rawLeg.setOriginAirportCode( commonOutput.getDestination() );
             rawLeg.setDestinationAirportCode( commonOutput.getOrigin() );
@@ -254,7 +267,7 @@ public class CommonOutputConverter  implements Serializable {
             rawLeg.setFareClass( commonOutput.getInbound_fare_basis() );
             rawLeg.setCabin( commonOutput.getInbound_cabins() );
             rawLeg.setNumberOfSeats( getSeatCount( commonOutput.getInbound_available_seats() ) );
-            rawLeg.setIntermediateAirports( buildList( commonOutput.getInbound_travel_stop_over() ) );
+            rawLeg.setIntermediateAirports( List.of() );
             rawLeg.setBrandId( commonOutput.getInbound_fare_family() );
 
             inboundLegList.add( rawLeg );

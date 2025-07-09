@@ -3,6 +3,7 @@ package com.threevictors.aws.priceeye.taxes;
 import com.threevictors.aws.configreader.configuration.reader.heavy.ConfigurationReader;
 import com.threevictors.aws.data.aws.RawLeg;
 import com.threevictors.aws.data.priceeye.PEItinerary;
+import com.threevictors.aws.priceeye.common.PEOagRecordCache2;
 import com.threevictors.aws.priceeye.taxes.dao.MetadataReader;
 import com.threevictors.aws.priceeye.taxes.data.TaxLadder;
 import com.threevictors.aws.priceeye.taxes.loader.CommonOutputPEItinsLoader;
@@ -48,6 +49,8 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
     private final S3Util s3Util;
 
     public PEEnginesTaxesApplicationWithCommonOutput(int totalThreadCount) throws Exception {
+// Uncomment the next line if you want to see logging from the flight lookup cache
+//        PEOagRecordCache2.ENABLE_CACHE_LOGGING = true;
 
         // Get US Domestic airports
         //AuroraMetadataReader metadataReader = new AuroraMetadataReader();
@@ -111,6 +114,7 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
             AtomicInteger processedCount = new AtomicInteger(0);
             AtomicInteger submittedCount = new AtomicInteger(0);
             AtomicInteger tossedCount = new AtomicInteger(0);
+            AtomicInteger connectionCount = new AtomicInteger(0);
 
             // Stream and process itineraries
             commonOutputPEItinsLoader.streamPEItins(salesDate, customer, pos, schemaSuffix, limit,
@@ -122,81 +126,46 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
                             // Get the PEItinerary from the pair
                             PEItinerary peItinerary = itineraryPair.getY();
 
-                            // Check if we need to toss this itinerary based on the requirements
-                            boolean shouldTossItinerary = false;
-
                             // Begin 12 hour stopover logic itinerary tossing
                             // Check outbound legs
                             List<RawLeg> outboundLegs = peItinerary.getOutboundLegs();
-                            if (outboundLegs != null && outboundLegs.size() > 1) {
-                                // Loop through all consecutive legs
-                                for (int i = 0; i < outboundLegs.size() - 1; i++) {
-                                    RawLeg firstLeg = outboundLegs.get(i);
-                                    RawLeg secondLeg = outboundLegs.get(i + 1);
 
-                                    // Check if the first leg's destination is in the US
-                                    if (isUSAirport(firstLeg.getDestinationAirportCode())) {
-                                        // Check if hours between this leg and the next leg >= 12
-                                        if (hoursBetween(firstLeg, secondLeg) >= 12) {
-                                            shouldTossItinerary = true;
-                                            tossedCount.incrementAndGet();
-                                            break; // No need to check further if we're tossing the itinerary
-                                        }
-                                    }
+                            if ( has12HourConnection( outboundLegs ) ) {
+                                semaphore.release();
+
+                                connectionCount.incrementAndGet();
+                                int tossCount = tossedCount.incrementAndGet();
+
+                                if (tossCount % 1000 == 0) {
+                                    log.info("Tossed {} itineraries", tossCount);
                                 }
+                                return;
                             }
 
                             // Check inbound legs if the itinerary hasn't been tossed yet
-                            if (!shouldTossItinerary) {
-                                List<RawLeg> inboundLegs = peItinerary.getInboundLegs();
-                                if (inboundLegs != null && inboundLegs.size() > 1) {
-                                    // Loop through all consecutive legs
-                                    for (int i = 0; i < inboundLegs.size() - 1; i++) {
-                                        RawLeg firstLeg = inboundLegs.get(i);
-                                        RawLeg secondLeg = inboundLegs.get(i + 1);
+                            List<RawLeg> inboundLegs = peItinerary.getInboundLegs();
 
-                                        // Check if the first leg's destination is in the US
-                                        if (isUSAirport(firstLeg.getDestinationAirportCode())) {
-                                            // Check if hours between this leg and the next leg >= 12
-                                            if (hoursBetween(firstLeg, secondLeg) >= 12) {
-                                                shouldTossItinerary = true;
-                                                tossedCount.incrementAndGet();
-                                                break; // No need to check further if we're tossing the itinerary
-                                            }
-                                        }
-                                    }
+                            if ( has12HourConnection( inboundLegs ) ) {
+                                semaphore.release();
+                                int tossCount = tossedCount.incrementAndGet();
+
+                                connectionCount.incrementAndGet();
+                                if (tossCount % 1000 == 0) {
+                                    log.info("Tossed {} itineraries", tossCount);
                                 }
+                                return;
                             }
 
                             // Check for "toothy grins" if the itinerary hasn't been tossed yet
-                            if (!shouldTossItinerary) {
-                                List<RawLeg> outboundLegs2 = peItinerary.getOutboundLegs();
-                                List<RawLeg> inboundLegs2 = peItinerary.getInboundLegs();
+                           if ( hasToothyGrin( peItinerary ) ) {
+                               semaphore.release();
+                               int tossCount = tossedCount.incrementAndGet();
 
-                                // Only check if both outbound and inbound legs exist
-                                if (outboundLegs2 != null && !outboundLegs2.isEmpty() && 
-                                    inboundLegs2 != null && !inboundLegs2.isEmpty()) {
-
-                                    // Get the first outbound leg's origin airport code
-                                    String obl1Orig = outboundLegs2.get(0).getOriginAirportCode();
-
-                                    // Get the last inbound leg's destination airport code
-                                    String ibl2Dest = inboundLegs2.get(inboundLegs2.size() - 1).getDestinationAirportCode();
-
-                                    // Check if they don't match (toothy grin)
-                                    if (!obl1Orig.equalsIgnoreCase(ibl2Dest)) {
-                                        shouldTossItinerary = true;
-                                        //log.debug("Tossing itinerary due to toothy grin: " + obl1Orig + " != " + ibl2Dest);
-                                        tossedCount.incrementAndGet();
-                                    }
-                                }
-                            }
-
-                            // If we should toss the itinerary, release the semaphore and skip processing
-                            if (shouldTossItinerary) {
-                                semaphore.release();
-                                return;
-                            }
+                               if (tossCount % 1000 == 0) {
+                                   log.info("Tossed {} itineraries", tossCount);
+                               }
+                               return;
+                           }
 
                             int currentCount = submittedCount.incrementAndGet();
                             if (currentCount % 1000 == 0) {
@@ -244,8 +213,8 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
 
             /*log.info("All itinerary processing completed. Processed: {}, Submitted: {}",
                             processedCount.get(), submittedCount.get());*/
-            log.info("All itinerary processing completed. Processed: {}, Submitted: {}, Tossed: {}",
-                    processedCount.get(), submittedCount.get(), tossedCount.get());
+            log.info("All itinerary processing completed. Processed: {}, Submitted: {}, Tossed: {}, 12 Hr Connections: {}, Toothy Grins: {}",
+                    processedCount.get(), submittedCount.get(), tossedCount.get(), connectionCount.get(), tossedCount.get() - connectionCount.get());
 
         } catch (Exception e) {
             log.error("Error in streaming processing", e);
@@ -270,6 +239,36 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
         }
     }
 
+
+    private boolean has12HourConnection(List<RawLeg> legs) {
+        if (legs.size() == 1) return false;
+
+        RawLeg firstLeg = legs.get(0);
+        RawLeg secondLeg = legs.get(1);
+
+        // Check if the first leg's destination is in the US
+        if ( !isUSAirport(firstLeg.getDestinationAirportCode())) return false;
+
+        // Check if hours between this leg and the next leg >= 12
+        return hoursBetween(firstLeg, secondLeg) >= 12;
+    }
+
+
+
+    private boolean hasToothyGrin( PEItinerary itinerary ) {
+        List<RawLeg> outboundLegs = itinerary.getOutboundLegs();
+        List<RawLeg> inboundLegs  = itinerary.getInboundLegs();
+
+        if ( inboundLegs == null ) return false;
+
+        // Get the first outbound leg's origin airport code
+        String outboundOrigin = outboundLegs.get(0).getOriginAirportCode();
+
+        // Get the last inbound leg's destination airport code
+        String inboundDestination = inboundLegs.get(inboundLegs.size() - 1).getDestinationAirportCode();
+
+        return !outboundOrigin.equals(inboundDestination);
+    }
 
     private String buildLeg(RawLeg leg) {
         String format = "%s,%s,%s,%04d,%d,%d,%d,%d,%s,%s";

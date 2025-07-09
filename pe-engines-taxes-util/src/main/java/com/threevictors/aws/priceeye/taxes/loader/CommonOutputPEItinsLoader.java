@@ -1,6 +1,5 @@
 package com.threevictors.aws.priceeye.taxes.loader;
 
-import com.threevictors.aws.data.priceeye.PECommonOutput;
 import com.threevictors.aws.data.priceeye.PEItinerary;
 import com.threevictors.aws.data.priceeye.Pair;
 import com.threevictors.aws.priceeye.taxes.dao.RedshiftCommonOutputReader;
@@ -9,8 +8,6 @@ import com.threevictors.common.database.dao.aurora.metadata.AuroraMetadataReader
 import lombok.Data;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -42,7 +39,8 @@ public class CommonOutputPEItinsLoader implements Serializable {
         redshiftCommonOutputReader.streamCommonOutput(salesDate, customer, pos, schemaSuffix, limit,
                 peCommonOutput -> {
                     Pair<String, PEItinerary> peItinerary = commonOutputConverter.convertCommonOutputToPeItinerary( peCommonOutput );
-                    processor.accept(peItinerary);
+
+                    if ( peItinerary != null) processor.accept(peItinerary);
                 });
     }
 }
