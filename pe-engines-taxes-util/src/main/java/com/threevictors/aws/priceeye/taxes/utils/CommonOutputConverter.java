@@ -45,9 +45,7 @@ public class CommonOutputConverter  implements Serializable {
     }
 
     // legacy code calls this method like this: convertToRawSearch( searchWithItineraries, null, null, false, null, 1, "ADT" );
-
-    //public Pair<String, PEItinerary> convertCommonOutputToPeItinerary(PECommonOutput commonOutput ) {
-    public Pair<String, PEItinerary> convertCommonOutputToPeItinerary(PECommonOutput commonOutput, AtomicInteger convertCount) {
+    public Pair<String, PEItinerary> convertCommonOutputToPeItinerary(PECommonOutput commonOutput ) {
         try {
             PEItinerary itinerary = new PEItinerary();
 
@@ -104,11 +102,10 @@ public class CommonOutputConverter  implements Serializable {
 
             itinerary.setChangeFee(commonOutput.getChange_fee());
 
-            //TODO: Just use outBrandsEnriched field to store a counter type value for each PEItin. This is to help with final analytics query for the time-being
-            itinerary.setOutBrandsEnriched(String.valueOf(convertCount));
-
-            //TODO: Just use inBrandsEnriched field to store engine request times
-
+            //Note, these are used for
+            //double taxesEnriched - sfe call duration
+            //double outboundPriceEnriched; - pfc 1 call duration
+            //double inboundPriceEnriched; - pfc 2 call duration
 
             // leave enriched fields unset
             //double totalPriceEnriched;

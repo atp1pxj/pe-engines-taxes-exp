@@ -61,10 +61,9 @@ public class PEItineraryTaxProcessor {
         rootResponse = rootResponse.thenApply(response -> {
             long sfeEndTime = System.currentTimeMillis();
             long sfeDuration = sfeEndTime - sfeStartTime;
-
             // Update inBrandsEnriched with SFE call time in a thread-safe manner
             synchronized (currentItin) {
-                currentItin.setInBrandsEnriched("sfe: " + sfeDuration + "ms");
+                currentItin.setTaxesEnriched( sfeDuration );
             }
 
             return response;
@@ -212,12 +211,7 @@ public class PEItineraryTaxProcessor {
 
                     // Append PFC call 1 time to inBrandsEnriched in a thread-safe manner
                     synchronized (currentItin) {
-                        String currentValue = currentItin.getInBrandsEnriched();
-                        if (currentValue == null || currentValue.isEmpty()) {
-                            currentItin.setInBrandsEnriched("pfc-call-1: " + pfcCall1Duration + "ms");
-                        } else {
-                            currentItin.setInBrandsEnriched(currentValue + "; pfc-call-1: " + pfcCall1Duration + "ms");
-                        }
+                        currentItin.setOutboundPriceEnriched( pfcCall1Duration );
                     }
 
                     processPFC(response, pfcTaxes);
@@ -244,12 +238,7 @@ public class PEItineraryTaxProcessor {
 
                         // Append PFC call 2 time to inBrandsEnriched in a thread-safe manner
                         synchronized (currentItin) {
-                            String currentValue = currentItin.getInBrandsEnriched();
-                            if (currentValue == null || currentValue.isEmpty()) {
-                                currentItin.setInBrandsEnriched("pfc-call-2: " + pfcCall2Duration + "ms");
-                            } else {
-                                currentItin.setInBrandsEnriched(currentValue + "; pfc-call-2: " + pfcCall2Duration + "ms");
-                            }
+                            currentItin.setInboundPriceEnriched( pfcCall2Duration );
                         }
 
                         processPFC(response, pfcTaxes);

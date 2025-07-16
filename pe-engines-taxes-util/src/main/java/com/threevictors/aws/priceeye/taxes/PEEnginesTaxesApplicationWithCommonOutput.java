@@ -116,10 +116,8 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
             AtomicInteger tossedCount = new AtomicInteger(0);
             AtomicInteger connectionCount = new AtomicInteger(0);
 
-            AtomicInteger convertCount = new AtomicInteger(0);
-
             // Stream and process itineraries
-            commonOutputPEItinsLoader.streamPEItins(salesDate, customer, pos, schemaSuffix, limit, convertCount,
+            commonOutputPEItinsLoader.streamPEItins(salesDate, customer, pos, schemaSuffix, limit,
                     itineraryPair -> {
                         try {
                             // Acquire a permit from the semaphore before submitting a new task
@@ -214,8 +212,6 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
 
             CompletableFuture.allOf(activeFutures.toArray(new CompletableFuture[0])).join();
 
-            /*log.info("All itinerary processing completed. Processed: {}, Submitted: {}",
-                            processedCount.get(), submittedCount.get());*/
             log.info("All itinerary processing completed. Processed: {}, Submitted: {}, Tossed: {}, 12 Hr Connections: {}, Toothy Grins: {}",
                     processedCount.get(), submittedCount.get(), tossedCount.get(), connectionCount.get(), tossedCount.get() - connectionCount.get());
 
@@ -329,10 +325,14 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
         //This wrapping is needed otherwise the csv will fail.
         csvLine.append(",").append("\"").append(fareConstructionText).append("\"");
 
-        //Store response times here
-        csvLine.append(",").append(currentItin.getInBrandsEnriched());
-        //append converted counter
-        csvLine.append(",").append(currentItin.getOutBrandsEnriched());
+        //Store response times in these fields for now.
+
+        //SFE call duration
+        csvLine.append(",").append((long) currentItin.getTaxesEnriched())  ;
+        //PFC call 1 duration
+        csvLine.append(",").append((long) currentItin.getOutboundPriceEnriched());
+        //PFC call 2 duration
+        csvLine.append(",").append((long) currentItin.getInboundPriceEnriched());
 
         synchronized (pWriter) {
             pWriter.println( csvLine );

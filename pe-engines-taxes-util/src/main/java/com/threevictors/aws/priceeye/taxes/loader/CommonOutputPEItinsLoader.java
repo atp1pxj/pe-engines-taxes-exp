@@ -34,21 +34,12 @@ public class CommonOutputPEItinsLoader implements Serializable {
     }
 
 
-    public void streamPEItins(int salesDate, String customer, String pos, String schemaSuffix, int limit, AtomicInteger convertCount,
+    public void streamPEItins(int salesDate, String customer, String pos, String schemaSuffix, int limit,
                               Consumer<Pair<String, PEItinerary>> processor) {
-
-
-        /*redshiftCommonOutputReader.streamCommonOutput(salesDate, customer, pos, schemaSuffix, limit,
-                peCommonOutput -> {
-                    Pair<String, PEItinerary> peItinerary = commonOutputConverter.convertCommonOutputToPeItinerary( peCommonOutput );
-
-                    if ( peItinerary != null) processor.accept(peItinerary);
-                });*/
 
         redshiftCommonOutputReader.streamCommonOutput(salesDate, customer, pos, schemaSuffix, limit,
                 peCommonOutput -> {
-                    convertCount.incrementAndGet();
-                    Pair<String, PEItinerary> peItinerary = commonOutputConverter.convertCommonOutputToPeItinerary( peCommonOutput, convertCount );
+                    Pair<String, PEItinerary> peItinerary = commonOutputConverter.convertCommonOutputToPeItinerary( peCommonOutput );
 
                     if ( peItinerary != null) processor.accept(peItinerary);
                 });
