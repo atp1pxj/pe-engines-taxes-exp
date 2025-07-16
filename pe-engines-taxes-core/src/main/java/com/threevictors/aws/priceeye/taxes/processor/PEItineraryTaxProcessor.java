@@ -52,7 +52,23 @@ public class PEItineraryTaxProcessor {
     public CompletableFuture<TaxLadder> processPEItinerary( String pointOfSale, PEItinerary currentItin, int salesDate ) {
         String queryId = QUERY_ID_PREFIX_3V + UUID.randomUUID();
 
+        // Record start time for SFE engine call
+        long sfeStartTime = System.currentTimeMillis();
+
         CompletableFuture<RootResponse> rootResponse = taxEngineCommunicator.sendRequest( pointOfSale, currentItin, queryId, salesDate );
+
+        // Measure SFE call time and update inBrandsEnriched when the response is received
+        rootResponse = rootResponse.thenApply(response -> {
+            long sfeEndTime = System.currentTimeMillis();
+            long sfeDuration = sfeEndTime - sfeStartTime;
+            // Update inBrandsEnriched with SFE call time in a thread-safe manner
+            synchronized (currentItin) {
+                currentItin.setTaxesEnriched( sfeDuration );
+            }
+
+            return response;
+        });
+
         CompletableFuture<BigDecimal> pfcResponse = calculatePFCTaxes(pointOfSale, currentItin, queryId, salesDate);
 
         // Combine both futures without blocking
@@ -182,10 +198,22 @@ public class PEItineraryTaxProcessor {
         //Adding the fareConstructionText field to continue the capture of HTTP request. This is not feasible as the value will get reflected on the original itin
         //obOwItin.setFareConstructionText(currentItin.getFareConstructionText());
 
+        // Record start time for first PFC engine call
+        long pfcCall1StartTime = System.currentTimeMillis();
+
         //Passing the original PEItinerary currentItin to capture the applicable PFC HTTP request body
         CompletableFuture<RootPFCResponse> rootPFCResponse = pfcTaxEngineCommunicator.sendRequest(pointOfSale, obOwItin, queryId, salesDate, currentItin);
 
         CompletableFuture<Void> processResult = rootPFCResponse.thenAcceptAsync(response -> {
+                    // Measure PFC call 1 time and update inBrandsEnriched
+                    long pfcCall1EndTime = System.currentTimeMillis();
+                    long pfcCall1Duration = pfcCall1EndTime - pfcCall1StartTime;
+
+                    // Append PFC call 1 time to inBrandsEnriched in a thread-safe manner
+                    synchronized (currentItin) {
+                        currentItin.setOutboundPriceEnriched( pfcCall1Duration );
+                    }
+
                     processPFC(response, pfcTaxes);
                 }
             , SharedHttpFactory.getInstance().getExecutorService());
@@ -198,8 +226,24 @@ public class PEItineraryTaxProcessor {
             ibOwItin.setOutboundLegs(currentItin.getInboundLegs());
             ibOwItin.setInboundLegs(List.of());
 
-            processResult = processResult.thenComposeAsync( x -> pfcTaxEngineCommunicator.sendRequest(pointOfSale, ibOwItin, queryId, salesDate, currentItin))
-                    .thenAcceptAsync( response -> processPFC(response, pfcTaxes), SharedHttpFactory.getInstance().getExecutorService());
+            processResult = processResult.thenComposeAsync(x -> {
+                // Record start time for second PFC engine call
+                long pfcCall2StartTime = System.currentTimeMillis();
+
+                return pfcTaxEngineCommunicator.sendRequest(pointOfSale, ibOwItin, queryId, salesDate, currentItin)
+                    .thenAcceptAsync(response -> {
+                        // Measure PFC call 2 time and update inBrandsEnriched
+                        long pfcCall2EndTime = System.currentTimeMillis();
+                        long pfcCall2Duration = pfcCall2EndTime - pfcCall2StartTime;
+
+                        // Append PFC call 2 time to inBrandsEnriched in a thread-safe manner
+                        synchronized (currentItin) {
+                            currentItin.setInboundPriceEnriched( pfcCall2Duration );
+                        }
+
+                        processPFC(response, pfcTaxes);
+                    }, SharedHttpFactory.getInstance().getExecutorService());
+            });
         }
 
         return processResult.thenApply(v -> pfcTaxes.get());

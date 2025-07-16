@@ -180,6 +180,7 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
                                  // Release the permit back to the semaphore when the task is done
                                  semaphore.release();
                                  int processed = processedCount.incrementAndGet();
+                                 //TODO - try moving the semaphore.release() here and see
                                  if (processed % 1000 == 0) {
                                      log.info("Processed {} itineraries", processed);
                                  }
@@ -211,8 +212,6 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
 
             CompletableFuture.allOf(activeFutures.toArray(new CompletableFuture[0])).join();
 
-            /*log.info("All itinerary processing completed. Processed: {}, Submitted: {}",
-                            processedCount.get(), submittedCount.get());*/
             log.info("All itinerary processing completed. Processed: {}, Submitted: {}, Tossed: {}, 12 Hr Connections: {}, Toothy Grins: {}",
                     processedCount.get(), submittedCount.get(), tossedCount.get(), connectionCount.get(), tossedCount.get() - connectionCount.get());
 
@@ -325,6 +324,15 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
         String fareConstructionText = currentItin.getFareConstructionText().replace("\"", "\\\"");
         //This wrapping is needed otherwise the csv will fail.
         csvLine.append(",").append("\"").append(fareConstructionText).append("\"");
+
+        //Store response times in these fields for now.
+
+        //SFE call duration
+        csvLine.append(",").append((long) currentItin.getTaxesEnriched())  ;
+        //PFC call 1 duration
+        csvLine.append(",").append((long) currentItin.getOutboundPriceEnriched());
+        //PFC call 2 duration
+        csvLine.append(",").append((long) currentItin.getInboundPriceEnriched());
 
         synchronized (pWriter) {
             pWriter.println( csvLine );
