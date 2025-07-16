@@ -16,6 +16,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAccessor;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 //Class taken from spark-v3 historical module.
 @Data
@@ -45,7 +46,8 @@ public class CommonOutputConverter  implements Serializable {
 
     // legacy code calls this method like this: convertToRawSearch( searchWithItineraries, null, null, false, null, 1, "ADT" );
 
-    public Pair<String, PEItinerary> convertCommonOutputToPeItinerary(PECommonOutput commonOutput ) {
+    //public Pair<String, PEItinerary> convertCommonOutputToPeItinerary(PECommonOutput commonOutput ) {
+    public Pair<String, PEItinerary> convertCommonOutputToPeItinerary(PECommonOutput commonOutput, AtomicInteger convertCount) {
         try {
             PEItinerary itinerary = new PEItinerary();
 
@@ -101,6 +103,11 @@ public class CommonOutputConverter  implements Serializable {
             //itinerary.setTaxLadder( ? );
 
             itinerary.setChangeFee(commonOutput.getChange_fee());
+
+            //TODO: Just use outBrandsEnriched field to store a counter type value for each PEItin. This is to help with final analytics query for the time-being
+            itinerary.setOutBrandsEnriched(String.valueOf(convertCount));
+
+            //TODO: Just use inBrandsEnriched field to store engine request times
 
 
             // leave enriched fields unset

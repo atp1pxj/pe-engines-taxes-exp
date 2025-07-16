@@ -116,8 +116,10 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
             AtomicInteger tossedCount = new AtomicInteger(0);
             AtomicInteger connectionCount = new AtomicInteger(0);
 
+            AtomicInteger convertCount = new AtomicInteger(0);
+
             // Stream and process itineraries
-            commonOutputPEItinsLoader.streamPEItins(salesDate, customer, pos, schemaSuffix, limit,
+            commonOutputPEItinsLoader.streamPEItins(salesDate, customer, pos, schemaSuffix, limit, convertCount,
                     itineraryPair -> {
                         try {
                             // Acquire a permit from the semaphore before submitting a new task
@@ -180,6 +182,7 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
                                  // Release the permit back to the semaphore when the task is done
                                  semaphore.release();
                                  int processed = processedCount.incrementAndGet();
+                                 //TODO - try moving the semaphore.release() here and see
                                  if (processed % 1000 == 0) {
                                      log.info("Processed {} itineraries", processed);
                                  }
@@ -325,6 +328,11 @@ public class PEEnginesTaxesApplicationWithCommonOutput {
         String fareConstructionText = currentItin.getFareConstructionText().replace("\"", "\\\"");
         //This wrapping is needed otherwise the csv will fail.
         csvLine.append(",").append("\"").append(fareConstructionText).append("\"");
+
+        //Store response times here
+        csvLine.append(",").append(currentItin.getInBrandsEnriched());
+        //append converted counter
+        csvLine.append(",").append(currentItin.getOutBrandsEnriched());
 
         synchronized (pWriter) {
             pWriter.println( csvLine );
