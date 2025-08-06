@@ -128,15 +128,14 @@ public class PEItineraryTaxProcessor {
                         break;
 
                     case PERCENT_TAX:
-                        if ((currentChargeDetail.getResponseCharge().doubleValue() == x1TaxRecordDataPoints.getTaxPercent())
-                                ||
+                        if ((currentChargeDetail.getResponseCharge().doubleValue() == x1TaxRecordDataPoints.getTaxPercent()) ||
                                 (currentChargeDetail.getChargeDescription() != null &&
-                                        (currentChargeDetail.getChargeDescription().contains("% of 100.00USD") ||
-                                                currentChargeDetail.getChargeDescription().contains("% of 50.00USD"))
+                                        (currentChargeDetail.getChargeDescription().contains("% of 100.00") ||
+                                                currentChargeDetail.getChargeDescription().contains("% of 50.00"))
                                 )
                         ) {
                             // Use the mapKeyLookup as the key to store the percentage tax rate. This is to aid with the maxTaxWhenPercent lookup later.
-                            taxLadder.getPercentageTaxKeyMap().put(mapKeyLookup, currentChargeDetail.getResponseCharge());
+                            taxLadder.getPercentageTaxKeyMap().put(mapKeyLookup, BigDecimal.valueOf(x1TaxRecordDataPoints.getTaxPercent()));
                         }
                         // Tax on Tax. so treat it as flat tax
                         else {
