@@ -16,6 +16,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAccessor;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 //Class taken from spark-v3 historical module.
 @Data
@@ -44,7 +45,6 @@ public class CommonOutputConverter  implements Serializable {
     }
 
     // legacy code calls this method like this: convertToRawSearch( searchWithItineraries, null, null, false, null, 1, "ADT" );
-
     public Pair<String, PEItinerary> convertCommonOutputToPeItinerary(PECommonOutput commonOutput ) {
         try {
             PEItinerary itinerary = new PEItinerary();
@@ -102,6 +102,10 @@ public class CommonOutputConverter  implements Serializable {
 
             itinerary.setChangeFee(commonOutput.getChange_fee());
 
+            //Note, these are used for
+            //double taxesEnriched - sfe call duration
+            //double outboundPriceEnriched; - pfc 1 call duration
+            //double inboundPriceEnriched; - pfc 2 call duration
 
             // leave enriched fields unset
             //double totalPriceEnriched;
