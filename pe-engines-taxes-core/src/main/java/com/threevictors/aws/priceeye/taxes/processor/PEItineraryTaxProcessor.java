@@ -73,11 +73,11 @@ public class PEItineraryTaxProcessor {
 
         // Combine both futures without blocking
         return rootResponse.thenCombineAsync(pfcResponse, 
-        (response, pfcTaxes) -> examineTaxes(response, pointOfSale, currentItin, queryId, salesDate, pfcTaxes), 
+        (response, pfcTaxes) -> examineTaxes(response, currentItin, pfcTaxes),
         SharedHttpFactory.getInstance().getExecutorService());
     }
 
-    private TaxLadder examineTaxes(RootResponse convertedResponse, String pointOfSale, PEItinerary currentItin, String queryId, int salesDate, BigDecimal pfcTaxes) {
+    private TaxLadder examineTaxes(RootResponse convertedResponse, PEItinerary currentItin, BigDecimal pfcTaxes) {
         if (convertedResponse == null) {
             log.error("Converted response is null");
             return null;
@@ -110,7 +110,7 @@ public class PEItineraryTaxProcessor {
 
         // Use the already resolved pfcTaxes instead of blocking
         if (pfcTaxes.compareTo(BigDecimal.ZERO) > 0) {
-            taxLadder.addFlatTaxRate("XF", pfcTaxes.min(BigDecimal.valueOf(18)));
+            taxLadder.addFlatTaxRate("XF", pfcTaxes );
         }
 
         calculatePercentTax(itineraryTotal, taxLadder);
@@ -166,29 +166,8 @@ public class PEItineraryTaxProcessor {
         }
     }
 
-    private void processPercentTax(ChargeDetail currentChargeDetail, String mapKeyLookup, Map<String, List<BigDecimal>> flatOrPercentValuesMap) {
-        if (currentChargeDetail.getChargeDescription() != null && currentChargeDetail.getChargeDescription().contains("% of 100.00USD")) {
-            flatOrPercentValuesMap.computeIfAbsent(PERCENT_TAX, k -> new ArrayList<>())
-                    .add(BigDecimal.valueOf(x1TaxRecordDataPointsMap.get(mapKeyLookup).getTaxPercent()));
-        } else {
-            flatOrPercentValuesMap.computeIfAbsent(TAX_ON_TAX, k -> new ArrayList<>())
-                    .add(currentChargeDetail.getResponseCharge().setScale(2, BigDecimal.ROUND_HALF_UP));
-        }
-    }
-
-    private BigDecimal calculateFlatAndTaxOnTax(Map<String, List<BigDecimal>> flatOrPercentValuesMap, BigDecimal itinTpDeductedWithTaxes) {
-        BigDecimal totalFlatTaxAmount = flatOrPercentValuesMap.getOrDefault(FLAT_TAX, Collections.emptyList())
-                .stream().reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        BigDecimal totalTaxOnTaxAmount = flatOrPercentValuesMap.getOrDefault(TAX_ON_TAX, Collections.emptyList())
-                .stream().reduce(BigDecimal.ZERO, BigDecimal::add);
-        // Calculate the total flat tax amount and tax on tax amount
-        return totalFlatTaxAmount.add(totalTaxOnTaxAmount);
-    }
 
     private CompletableFuture<BigDecimal> calculatePFCTaxes(String pointOfSale, PEItinerary currentItin, String queryId, int salesDate) {
-        AtomicReference<BigDecimal> pfcTaxes = new AtomicReference<>(BigDecimal.ZERO);
-
         //create two oneway itineraries from currentItin - one for outbound and one for inbound.
         PEItinerary obOwItin = PEItinerary.copy(currentItin);
         //Empty inbound legs for outbound itinerary
@@ -203,7 +182,7 @@ public class PEItineraryTaxProcessor {
         //Passing the original PEItinerary currentItin to capture the applicable PFC HTTP request body
         CompletableFuture<RootPFCResponse> rootPFCResponse = pfcTaxEngineCommunicator.sendRequest(pointOfSale, obOwItin, queryId, salesDate, currentItin);
 
-        CompletableFuture<Void> processResult = rootPFCResponse.thenAcceptAsync(response -> {
+        CompletableFuture<BigDecimal> outboundFuture = rootPFCResponse.thenApplyAsync(response -> {
                     // Measure PFC call 1 time and update inBrandsEnriched
                     long pfcCall1EndTime = System.currentTimeMillis();
                     long pfcCall1Duration = pfcCall1EndTime - pfcCall1StartTime;
@@ -213,24 +192,23 @@ public class PEItineraryTaxProcessor {
                         currentItin.setOutboundPriceEnriched( pfcCall1Duration );
                     }
 
-                    processPFC(response, pfcTaxes);
+                    return processPFC( response );
                 }
             , SharedHttpFactory.getInstance().getExecutorService());
 
+        if ( currentItin.getInboundLegs() == null || currentItin.getInboundLegs().isEmpty() ) {
+            return outboundFuture;
+        }
 
-        // Only create and add inbound one-way itinerary if inbound legs exist
-        if (currentItin.getInboundLegs() != null && !currentItin.getInboundLegs().isEmpty()) {
-            PEItinerary ibOwItin = PEItinerary.copy(currentItin);
-            //set inbound legs as outbound for inbound OW PFC itinerary
-            ibOwItin.setOutboundLegs(currentItin.getInboundLegs());
-            ibOwItin.setInboundLegs(List.of());
+        PEItinerary ibOwItin = PEItinerary.copy(currentItin);
+        //set inbound legs as outbound for inbound OW PFC itinerary
+        ibOwItin.setOutboundLegs(currentItin.getInboundLegs());
+        ibOwItin.setInboundLegs(List.of());
 
-            processResult = processResult.thenComposeAsync(x -> {
-                // Record start time for second PFC engine call
-                long pfcCall2StartTime = System.currentTimeMillis();
+        long pfcCall2StartTime = System.currentTimeMillis();
 
-                return pfcTaxEngineCommunicator.sendRequest(pointOfSale, ibOwItin, queryId, salesDate, currentItin)
-                    .thenAcceptAsync(response -> {
+        CompletableFuture<BigDecimal> inboundFuture = pfcTaxEngineCommunicator.sendRequest(pointOfSale, ibOwItin, queryId, salesDate, currentItin)
+                    .thenApplyAsync(response -> {
                         // Measure PFC call 2 time and update inBrandsEnriched
                         long pfcCall2EndTime = System.currentTimeMillis();
                         long pfcCall2Duration = pfcCall2EndTime - pfcCall2StartTime;
@@ -240,26 +218,25 @@ public class PEItineraryTaxProcessor {
                             currentItin.setInboundPriceEnriched( pfcCall2Duration );
                         }
 
-                        processPFC(response, pfcTaxes);
+                        return processPFC(response);
                     }, SharedHttpFactory.getInstance().getExecutorService());
-            });
-        }
 
-        return processResult.thenApply(v -> pfcTaxes.get());
+
+        return outboundFuture.thenCombineAsync(inboundFuture, BigDecimal::add, SharedHttpFactory.getInstance().getExecutorService());
     }
 
-    private void processPFC( RootPFCResponse response, AtomicReference<BigDecimal> pfcTaxes ) {
-        if (response != null && response.getPfcResponse() != null
-                && response.getPfcResponse().getCharges() != null
-                && !response.getPfcResponse().getCharges().isEmpty()) {
-            // retrieve PFC taxes from the response and add them to the total
-            List<Charge> pfcCharges = response.getPfcResponse().getCharges();
-
-            pfcCharges.forEach(airportPfcCharge -> {
-                BigDecimal taxAmount = BigDecimal.valueOf(airportPfcCharge.getCharge());
-                pfcTaxes.set(pfcTaxes.get().add(taxAmount));
-            });
+    private BigDecimal processPFC( RootPFCResponse response ) {
+        if (response == null || response.getPfcResponse() == null
+                || response.getPfcResponse().getCharges() == null
+                || response.getPfcResponse().getCharges().isEmpty()) {
+            return BigDecimal.ZERO;
         }
+
+        BigDecimal result = response.getPfcResponse().getCharges().stream()
+                .map( c -> BigDecimal.valueOf( c.getResponseCharge() ))
+                .reduce( BigDecimal.ZERO, BigDecimal::add );
+
+        return result;
     }
 
     private void calculatePercentTax(BigDecimal itineraryTotal, TaxLadder taxLadder) {
